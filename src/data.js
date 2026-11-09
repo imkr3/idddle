@@ -82,3 +82,19 @@ Idddle.DATA.achievements = (function () {
 
   return list;
 })();
+
+// ---------- 천체 연구 (성핵으로 사는 영구 강화, 환생해도 유지) ----------
+// 성핵 보너스(+10%/개)는 '획득한 총 성핵' 기준이라 연구에 써도 줄지 않는다.
+Idddle.DATA.research = [
+  { id: 'legacy',  icon: '🎁', name: '별의 유산',      cost: 1,  desc: '환생 후 별가루 1,000과 반딧불이 10마리로 시작' },
+  { id: 'dream',   icon: '💤', name: '꿈꾸는 별',      cost: 2,  desc: '오프라인 효율 50% → 75%' },
+  { id: 'magnet',  icon: '🧲', name: '별똥별 자석',    cost: 3,  desc: '보너스 별 등장 간격 -30%' },
+  { id: 'linger',  icon: '🐢', name: '느린 별똥별',    cost: 3,  desc: '보너스 별이 2배 오래 머무름' },
+  { id: 'night',   icon: '🌙', name: '긴 밤',          cost: 4,  desc: '오프라인 보상 최대 8시간 → 24시간' },
+  { id: 'design',  icon: '📐', name: '효율적 설계',    cost: 5,  desc: '생산기 가격 -10%' },
+  { id: 'touch',   icon: '✋', name: '성핵 손가락',    cost: 6,  desc: '클릭 시 초당 생산량의 3% 추가' },
+  { id: 'awake',   icon: '👁️', name: '잠들지 않는 별', cost: 8,  desc: '오프라인 효율 75% → 100%', req: 'dream' },
+  { id: 'golden',  icon: '🌟', name: '황금 별똥별',    cost: 10, desc: '보너스 별 효과 2배 (획득량·지속시간)', req: 'magnet' },
+  { id: 'engine',  icon: '⚙️', name: '우주 공학',      cost: 12, desc: '업그레이드 가격 -25%', req: 'design' },
+  { id: 'amplify', icon: '💠', name: '성핵 증폭',      cost: 20, desc: '성핵 1개당 보너스 +10% → +15%' },
+];

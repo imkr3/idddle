@@ -22,6 +22,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Run engine tests
+        run: node --test tests/*.test.js
       - name: Prepare site
         run: |
           mkdir _site

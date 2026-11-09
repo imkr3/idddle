@@ -22,6 +22,8 @@ Idddle.createEngine = function (saveKey) {
   const upgradeById = {};
   upgrades.forEach(function (u) { upgradeById[u.id] = u; });
 
+  const SAVE_VERSION = 2;
+
   function freshState() {
     const gens = {};
     D.generators.forEach(function (g) { gens[g.id] = 0; });
@@ -32,7 +34,11 @@ Idddle.createEngine = function (saveKey) {
       clicks: 0,
       gens: gens,
       upgrades: {},      // id -> true
-      cores: 0,          // 성핵 (환생 화폐)
+      v: SAVE_VERSION,
+      cores: 0,          // 지금까지 얻은 성핵 총량 (생산 보너스 기준)
+      coresSpent: 0,     // 연구에 쓴 성핵
+      research: {},      // id -> true (환생해도 유지)
+      settings: { notation: 'ko', sound: true },
       prestiges: 0,
       bonusClicks: 0,
       achievements: {},  // id -> true (환생해도 유지)
@@ -44,9 +50,41 @@ Idddle.createEngine = function (saveKey) {
 
   let s = freshState();
 
+  // ---------- 연구 효과 ----------
+  const researchById = {};
+  D.research.forEach(function (r) { researchById[r.id] = r; });
+  function has(id) { return !!s.research[id]; }
+  function coresFree() { return s.cores - s.coresSpent; }
+  function coreBonus() { return has('amplify') ? 0.15 : D.CORE_BONUS; }
+  function genCostMult() { return has('design') ? 0.9 : 1; }
+  function upgradeCost(u) { return u.cost * (has('engine') ? 0.75 : 1); }
+  function offlineRate() { return has('awake') ? 1 : has('dream') ? 0.75 : D.OFFLINE_RATE; }
+  function offlineCap() { return has('night') ? 24 * 3600 : D.OFFLINE_CAP_SEC; }
+  function bonusConfig() {
+    const BS = D.bonusStar;
+    const k = has('magnet') ? 0.7 : 1;
+    return {
+      delay: [BS.delaySec[0] * k, BS.delaySec[1] * k],
+      firstDelay: BS.firstDelaySec,
+      life: BS.lifeSec * (has('linger') ? 2 : 1),
+      power: has('golden') ? 2 : 1,
+    };
+  }
+
+  function researchAvailable(r) { return !has(r.id) && (!r.req || has(r.req)); }
+  function buyResearch(id) {
+    const r = researchById[id];
+    if (!r || !researchAvailable(r) || coresFree() < r.cost) return false;
+    s.coresSpent += r.cost;
+    s.research[id] = true;
+    return true;
+  }
+
   // ---------- 계산 ----------
   function achCount() { return Object.keys(s.achievements).length; }
-  function globalMult() { return (1 + s.cores * D.CORE_BONUS) * (1 + achCount() * D.ACH_BONUS); }
+  function coreMult() { return 1 + s.cores * coreBonus(); }
+  function achMult() { return 1 + achCount() * D.ACH_BONUS; }
+  function globalMult() { return coreMult() * achMult(); }
   function buffMult(kind) {
     let m = 1;
     for (const b of s.buffs) if (b.kind === kind) m *= b.mult;
@@ -68,7 +106,7 @@ Idddle.createEngine = function (saveKey) {
   function lps() { return baseLps() * buffMult('prod'); }
 
   function clickPower() {
-    let base = 1, frac = 0;
+    let base = 1, frac = has('touch') ? 0.03 : 0;
     for (const c of D.clickUpgrades) {
       if (!s.upgrades[c.id]) continue;
       if (c.mult) base *= c.mult;
@@ -80,13 +118,15 @@ Idddle.createEngine = function (saveKey) {
   // 현재 n개 보유 상태에서 k개 더 사는 비용 (등비급수 합)
   function bulkCost(g, k) {
     const n = s.gens[g.id];
-    return g.baseCost * Math.pow(G, n) * (Math.pow(G, k) - 1) / (G - 1);
+    return g.baseCost * genCostMult() * Math.pow(G, n) * (Math.pow(G, k) - 1) / (G - 1);
   }
   function maxAffordable(g) {
     const n = s.gens[g.id];
-    const first = g.baseCost * Math.pow(G, n);
+    const first = g.baseCost * genCostMult() * Math.pow(G, n);
     if (s.light < first) return 0;
-    return Math.floor(Math.log(s.light * (G - 1) / first + 1) / Math.log(G));
+    let k = Math.floor(Math.log(s.light * (G - 1) / first + 1) / Math.log(G));
+    while (k > 0 && bulkCost(g, k) > s.light) k--;   // 부동소수 오차 보정
+    return k;
   }
 
   function prestigeGain() {
@@ -117,8 +157,8 @@ Idddle.createEngine = function (saveKey) {
 
   function buyUpgrade(id) {
     const u = upgradeById[id];
-    if (!u || s.upgrades[id] || !upgradeVisible(u) || s.light < u.cost) return false;
-    s.light -= u.cost;
+    if (!u || s.upgrades[id] || !upgradeVisible(u) || s.light < upgradeCost(u)) return false;
+    s.light -= upgradeCost(u);
     s.upgrades[id] = true;
     return true;
   }
@@ -129,9 +169,11 @@ Idddle.createEngine = function (saveKey) {
     const keep = {
       cores: s.cores + gain, allTime: s.allTime, clicks: s.clicks, prestiges: s.prestiges + 1,
       bonusClicks: s.bonusClicks, achievements: s.achievements,
+      coresSpent: s.coresSpent, research: s.research, settings: s.settings,
     };
     s = freshState();
     Object.assign(s, keep);
+    if (has('legacy')) { s.light = 1000; s.gens.firefly = 10; }
     save();
     return gain;
   }
@@ -165,12 +207,13 @@ Idddle.createEngine = function (saveKey) {
     const e = rollBonus();
     s.bonusClicks++;
     if (e.id === 'lucky') {
-      const amount = Math.min(s.light * 0.15, baseLps() * 900) + 77 + clickPower() * 20;
+      const amount = (Math.min(s.light * 0.15, baseLps() * 900) + 77 + clickPower() * 20) * bonusConfig().power;
       earn(amount);
       return { effect: e, amount: amount };
     }
     s.buffs = s.buffs.filter(function (b) { return b.id !== e.id; });  // 같은 버프는 갱신
-    s.buffs.push({ id: e.id, name: e.name, kind: e.kind, mult: e.mult, left: e.sec, total: e.sec });
+    const sec = e.sec * bonusConfig().power;
+    s.buffs.push({ id: e.id, name: e.name, kind: e.kind, mult: e.mult, left: sec, total: sec });
     return { effect: e };
   }
 
@@ -190,37 +233,77 @@ Idddle.createEngine = function (saveKey) {
     try { localStorage.setItem(saveKey, JSON.stringify(s)); } catch (e) { /* 저장 불가 환경 무시 */ }
   }
 
-  // 불러오기 + 오프라인 보상 계산. 반환값: { seconds, earned }
+  // 저장 데이터를 현재 형식으로 맞추고, 깨진 숫자(NaN 등)는 0으로 되돌린다.
+  function normalize(data) {
+    if (!data || typeof data !== 'object' || typeof data.gens !== 'object') return null;
+    const base = freshState();
+    const out = Object.assign(base, data);
+    out.gens = Object.assign(freshState().gens, data.gens);
+    for (const id in out.gens) out.gens[id] = Math.max(0, Math.floor(Number(out.gens[id]) || 0));
+    ['light', 'runTotal', 'allTime', 'clicks', 'cores', 'coresSpent', 'prestiges', 'bonusClicks'].forEach(function (k) {
+      const n = Number(out[k]);
+      out[k] = isFinite(n) && n > 0 ? n : 0;
+    });
+    ['upgrades', 'achievements', 'research'].forEach(function (k) {
+      if (!out[k] || typeof out[k] !== 'object') out[k] = {};
+    });
+    out.settings = Object.assign(freshState().settings, data.settings || {});
+    out.buffs = [];   // 버프는 오프라인 동안 이어지지 않음
+    if (!isFinite(out.lastTick)) out.lastTick = Date.now();
+    if (!isFinite(out.startedAt)) out.startedAt = Date.now();
+    out.v = SAVE_VERSION;
+    return out;
+  }
+
+  // 오프라인 보상 계산. 반환값: { seconds, earned } | null
+  function applyOffline() {
+    const away = Math.min((Date.now() - s.lastTick) / 1000, offlineCap());
+    s.lastTick = Date.now();
+    if (!(away >= 30)) return null;
+    const earned = lps() * away * offlineRate();
+    if (earned > 0) earn(earned);
+    return { seconds: away, earned: earned, rate: offlineRate() };
+  }
+
   function load() {
     let raw = null;
     try { raw = localStorage.getItem(saveKey); } catch (e) {}
     if (!raw) return null;
-    try {
-      const data = JSON.parse(raw);
-      const base = freshState();
-      s = Object.assign(base, data);
-      s.gens = Object.assign(freshState().gens, data.gens || {});
-      s.upgrades = data.upgrades || {};
-      s.achievements = data.achievements || {};
-      s.buffs = [];   // 버프는 오프라인 동안 이어지지 않음
-    } catch (e) { s = freshState(); return null; }
+    let data = null;
+    try { data = normalize(JSON.parse(raw)); } catch (e) {}
+    if (!data) return null;
+    s = data;
+    return applyOffline();
+  }
 
-    const away = Math.min((Date.now() - s.lastTick) / 1000, D.OFFLINE_CAP_SEC);
-    if (away < 30) return null;
-    const earned = lps() * away * D.OFFLINE_RATE;
-    if (earned > 0) earn(earned);
+  // 내보내기: 다른 기기로 옮길 수 있는 문자열
+  function exportSave() {
     s.lastTick = Date.now();
-    return { seconds: away, earned: earned };
+    return btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+  }
+  function importSave(str) {
+    let data = null;
+    try { data = normalize(JSON.parse(decodeURIComponent(escape(atob(String(str).trim()))))); } catch (e) {}
+    if (!data) return false;
+    data.lastTick = Date.now();
+    s = data;
+    save();
+    return true;
   }
 
   function hardReset() {
+    const settings = s.settings;
     s = freshState();
+    s.settings = settings;
     try { localStorage.removeItem(saveKey); } catch (e) {}
   }
 
   // getter(state)를 살리기 위해 Object.assign 대신 디스크립터로 복사
   return Object.defineProperties(engineApi, Object.getOwnPropertyDescriptors({
     get state() { return s; },
+    research: D.research, researchAvailable: researchAvailable, buyResearch: buyResearch, has: has, coresFree: coresFree,
+    coreMult: coreMult, achMult: achMult, upgradeCost: upgradeCost, offlineRate: offlineRate, offlineCap: offlineCap, bonusConfig: bonusConfig,
+    exportSave: exportSave, importSave: importSave,
     baseLps: baseLps, buffMult: buffMult, achCount: achCount, claimBonus: claimBonus, checkAchievements: checkAchievements,
     upgrades: upgrades,
     lps: lps, clickPower: clickPower, genRate: genRate,

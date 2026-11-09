@@ -157,7 +157,7 @@
 .idd-tip-cost.no { color: var(--bad); }
 
 /* 토스트 */
-.idd-toasts { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 45; pointer-events: none; }
+.idd-toasts { position: absolute; left: 20px; bottom: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; z-index: 45; pointer-events: none; }
 .idd-toast { background: rgba(20, 22, 48, .95); border: 1px solid var(--line); padding: 8px 16px; border-radius: 999px; font-size: 13px; white-space: nowrap; opacity: 0; transform: translateY(12px); transition: .25s; box-shadow: 0 6px 20px rgba(0, 0, 0, .4); }
 .idd-toast.gold { border-color: rgba(255, 215, 110, .6); }
 .idd-toast.show { opacity: 1; transform: none; }
@@ -167,4 +167,40 @@
 .idd-modal-box { width: min(320px, 90%); padding: 26px 24px 20px; border-radius: 18px; text-align: center; line-height: 1.7; background: #15183a; border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 20px 60px rgba(0, 0, 0, .6); }
 .idd-modal-icon { font-size: 40px; margin-bottom: 4px; }
 .idd-modal-box small { color: var(--dim); }
-.idd-modal-box .idd-btn { margin-top: 18px; }
+
+/* 탭 알림 점 */
+.idd-dot { display: inline-block; width: 6px; height: 6px; margin-left: 4px; vertical-align: top; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+/* 생산기 구매까지 남은 시간 */
+.idd-gen-eta { color: var(--faint); font-size: 11px; margin-left: 4px; }
+
+/* 천체 연구 */
+.idd-research-head { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+.idd-research { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.idd-res { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 12px; text-align: center; background: var(--glass2); border: 1px solid rgba(94, 225, 255, .45); transition: transform .1s, background .15s; }
+.idd-res:hover:not(.off):not(.lock):not(.done) { transform: translateY(-2px); background: rgba(94, 225, 255, .1); }
+.idd-res-icon { font-size: 22px; }
+.idd-res-name { font-size: 12px; font-weight: 700; }
+.idd-res-cost { font-size: 11px; color: var(--accent2); }
+.idd-res.off { opacity: .55; border-color: var(--line); cursor: default; }
+.idd-res.lock { opacity: .3; border-color: var(--line); border-style: dashed; cursor: default; }
+.idd-res.done { border-color: rgba(255, 215, 110, .6); background: rgba(255, 215, 110, .1); cursor: default; }
+.idd-res.done .idd-res-cost { color: var(--gold); font-size: 0; }
+.idd-res.done .idd-res-cost::after { content: '연구 완료'; font-size: 11px; }
+
+/* 설정 */
+.idd-setting { display: flex; justify-content: space-between; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.idd-setting:last-of-type { margin-bottom: 16px; }
+.idd-setting .idd-seg button { padding: 4px 10px; font-size: 12px; }
+.idd-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.idd-stats + .idd-sec-title, .idd-setting + .idd-sec-title { margin-top: 18px; }
+
+/* 모달 버튼, 저장 코드 */
+.idd-modal-btns { display: flex; gap: 8px; margin-top: 18px; }
+.idd-modal-btns .idd-btn { flex: 1; }
+.idd-code { display: block; width: 100%; height: 90px; margin-top: 12px; padding: 8px; resize: none; border-radius: 8px; border: 1px solid var(--line); background: rgba(0, 0, 0, .35); color: var(--text); font: 11px/1.4 ui-monospace, monospace; word-break: break-all; user-select: text; -webkit-user-select: text; }
+
+/* 환생 섬광 */
+.idd.idd-flash::after { content: ''; position: absolute; inset: 0; z-index: 60; pointer-events: none; background: radial-gradient(circle at 30% 45%, #fff 0%, #ffd76e 30%, rgba(255, 120, 80, 0) 70%); animation: idd-flash 1.2s ease-out forwards; }
+@keyframes idd-flash { from { opacity: 1; } to { opacity: 0; } }
+@media (max-width: 760px) { .idd-toasts { left: 50%; transform: translateX(-50%); align-items: center; position: fixed; } }
