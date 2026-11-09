@@ -3,6 +3,7 @@ window.Idddle = window.Idddle || {};
 
 (function () {
   const UNITS = [[1e44, '재'], [1e40, '정'], [1e36, '간'], [1e32, '구'], [1e28, '양'], [1e24, '자'], [1e20, '해'], [1e16, '경'], [1e12, '조'], [1e8, '억'], [1e4, '만']];
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
   function fmt(n) {
     if (!isFinite(n)) return '∞';
@@ -33,6 +34,19 @@ window.Idddle = window.Idddle || {};
     return e;
   }
 
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  // 5각 별 SVG path
+  function starPath(cx, cy, outer, inner) {
+    let d = '';
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? inner : outer;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      d += (i ? 'L' : 'M') + (cx + r * Math.cos(a)).toFixed(1) + ' ' + (cy + r * Math.sin(a)).toFixed(1);
+    }
+    return d + 'Z';
+  }
+
   Idddle.fmt = fmt;
 
   Idddle.mount = function (root, opts) {
@@ -40,57 +54,97 @@ window.Idddle = window.Idddle || {};
     const D = Idddle.DATA;
     const game = Idddle.createEngine(opts.saveKey || 'idddle-save-v1');
     const offline = game.load();
+    game.checkAchievements(); // 불러온 상태 기준으로 조용히 갱신
     let buyAmount = 1;
+    let tab = 'shop';
+    const uid = Math.random().toString(36).slice(2, 7);
 
     root.classList.add('idd');
     root.innerHTML = `
-      <header class="idd-header">
-        <div class="idd-title">✦ 별가루 수집가</div>
-        <div class="idd-amount"><span data-r="light">0</span><small>별가루</small></div>
-        <div class="idd-rate">초당 <b data-r="lps">0</b></div>
+      <canvas class="idd-sky" aria-hidden="true"></canvas>
+      <div class="idd-bonus-layer" data-r="bonusLayer"></div>
+      <header class="idd-top">
+        <div class="idd-logo"><span>✦</span> 별가루 수집가</div>
+        <div class="idd-mults">
+          <span data-tip="mult-core">💠 <b data-r="coreMult">x1.0</b></span>
+          <span data-tip="mult-ach">🏆 <b data-r="achMult">x1.0</b></span>
+        </div>
       </header>
       <main class="idd-main">
         <section class="idd-left">
+          <div class="idd-amount"><span data-r="light">0</span></div>
+          <div class="idd-amount-label">별가루</div>
+          <div class="idd-rate">초당 <b data-r="lps">0</b></div>
           <button class="idd-orb" type="button" aria-label="별 클릭">
-            <span class="idd-orb-core">★</span>
+            <span class="idd-halo"></span><span class="idd-halo idd-halo2"></span>
+            <svg viewBox="0 0 200 200" class="idd-orb-svg">
+              <defs>
+                <radialGradient id="idd-g1-${uid}" cx="45%" cy="40%" r="60%">
+                  <stop offset="0%" stop-color="#fffdf2"/><stop offset="45%" stop-color="#ffe08a"/><stop offset="100%" stop-color="#ff9f43"/>
+                </radialGradient>
+                <radialGradient id="idd-g2-${uid}"><stop offset="0%" stop-color="#ffd36b" stop-opacity=".55"/><stop offset="100%" stop-color="#ffd36b" stop-opacity="0"/></radialGradient>
+              </defs>
+              <circle cx="100" cy="100" r="98" fill="url(#idd-g2-${uid})"/>
+              <path class="idd-star" d="${starPath(100, 102, 78, 34)}" fill="url(#idd-g1-${uid})" stroke="#fff6d6" stroke-width="3" stroke-linejoin="round"/>
+              <ellipse cx="80" cy="74" rx="14" ry="7" fill="#fff" opacity=".55" transform="rotate(-30 80 74)"/>
+            </svg>
           </button>
           <div class="idd-clickpow">클릭당 <b data-r="click">1</b></div>
-          <div class="idd-panel idd-prestige">
-            <div class="idd-panel-title">🌟 초신성 (환생)</div>
-            <p>모든 진행을 초기화하고 <b>성핵</b>을 얻습니다. 성핵 1개당 전체 생산 +${D.CORE_BONUS * 100}%.</p>
-            <p>보유 성핵: <b data-r="cores">0</b> (x<span data-r="gmult">1</span>)</p>
-            <button class="idd-btn idd-btn-prestige" type="button" data-act="prestige">
-              초신성 폭발 (+<span data-r="pgain">0</span>)
-            </button>
-          </div>
+          <div class="idd-buffs" data-r="buffs"></div>
         </section>
-        <section class="idd-right">
-          <div class="idd-panel">
-            <div class="idd-panel-title">업그레이드</div>
-            <div class="idd-upgrades" data-r="upgrades"></div>
-          </div>
-          <div class="idd-panel">
-            <div class="idd-panel-title idd-row">
-              <span>생산기</span>
-              <span class="idd-buyamt">
-                <button type="button" data-amt="1" class="on">x1</button>
-                <button type="button" data-amt="10">x10</button>
-                <button type="button" data-amt="100">x100</button>
-                <button type="button" data-amt="max">MAX</button>
-              </span>
+
+        <section class="idd-panel">
+          <nav class="idd-tabs">
+            <button type="button" data-tab="shop" class="on">상점</button>
+            <button type="button" data-tab="ach">업적 <small data-r="achCount">0</small></button>
+            <button type="button" data-tab="prestige">환생</button>
+            <button type="button" data-tab="stats">기록</button>
+          </nav>
+          <div class="idd-tabbody">
+            <div data-pane="shop">
+              <div class="idd-sec-title">업그레이드</div>
+              <div class="idd-upgrades" data-r="upgrades"></div>
+              <div class="idd-sec-title idd-row">
+                <span>생산기</span>
+                <span class="idd-seg">
+                  <button type="button" data-amt="1" class="on">1</button><button type="button" data-amt="10">10</button><button type="button" data-amt="100">100</button><button type="button" data-amt="max">MAX</button>
+                </span>
+              </div>
+              <div class="idd-gens" data-r="gens"></div>
             </div>
-            <div class="idd-gens" data-r="gens"></div>
+
+            <div data-pane="ach" hidden>
+              <p class="idd-note">업적 1개당 전체 생산 <b>+${D.ACH_BONUS * 100}%</b>. 환생해도 유지됩니다.</p>
+              <div class="idd-achs" data-r="achs"></div>
+            </div>
+
+            <div data-pane="prestige" hidden>
+              <div class="idd-prestige">
+                <div class="idd-nova">💥</div>
+                <h3>초신성 폭발</h3>
+                <p>별가루·생산기·업그레이드를 모두 초기화하고 <b>성핵</b>을 얻습니다.<br>성핵 1개당 전체 생산 <b>+${D.CORE_BONUS * 100}%</b> (영구).</p>
+                <div class="idd-prestige-stats">
+                  <div><small>보유 성핵</small><b data-r="cores">0</b></div>
+                  <div><small>지금 폭발하면</small><b>+<span data-r="pgain">0</span></b></div>
+                </div>
+                <p class="idd-note" data-r="pnext"></p>
+                <button class="idd-btn idd-btn-prestige" type="button" data-act="prestige">초신성 폭발</button>
+              </div>
+            </div>
+
+            <div data-pane="stats" hidden>
+              <dl class="idd-stats" data-r="stats"></dl>
+              <div class="idd-row idd-stat-btns">
+                <button class="idd-btn idd-btn-ghost" type="button" data-act="save">지금 저장</button>
+                <button class="idd-btn idd-btn-ghost idd-btn-danger" type="button" data-act="reset">전체 초기화</button>
+              </div>
+              <p class="idd-note">10초마다 브라우저에 자동 저장됩니다.</p>
+            </div>
           </div>
         </section>
       </main>
-      <footer class="idd-footer">
-        <span>누적 <b data-r="alltime">0</b> · 클릭 <b data-r="clicks">0</b>회</span>
-        <span>
-          <button class="idd-btn idd-btn-sm" type="button" data-act="save">저장</button>
-          <button class="idd-btn idd-btn-sm idd-btn-danger" type="button" data-act="reset">초기화</button>
-        </span>
-      </footer>
-      <div class="idd-toast" data-r="toast"></div>
+      <div class="idd-tip" data-r="tip" hidden></div>
+      <div class="idd-toasts" data-r="toasts"></div>
       <div class="idd-modal" data-r="modal" hidden><div class="idd-modal-box"><div data-r="modalText"></div><button class="idd-btn" type="button" data-act="closeModal">확인</button></div></div>
     `;
 
@@ -104,56 +158,157 @@ window.Idddle = window.Idddle || {};
       const row = el('button', 'idd-gen');
       row.type = 'button';
       row.dataset.gen = g.id;
+      row.dataset.tip = 'gen:' + g.id;
       row.innerHTML = `
         <span class="idd-gen-icon">${g.icon}</span>
         <span class="idd-gen-info">
           <span class="idd-gen-name">${g.name}</span>
-          <span class="idd-gen-desc">${g.desc}</span>
-          <span class="idd-gen-meta">개당 <b data-g="rate"></b>/초 · 총 <b data-g="total"></b>/초</span>
-        </span>
-        <span class="idd-gen-right">
-          <span class="idd-gen-owned" data-g="owned">0</span>
           <span class="idd-gen-cost">✦ <span data-g="cost"></span></span>
-        </span>`;
+        </span>
+        <span class="idd-gen-owned" data-g="owned">0</span>`;
       const refs = { row: row };
       row.querySelectorAll('[data-g]').forEach(function (e) { refs[e.dataset.g] = e; });
       genRows[g.id] = refs;
       R.gens.appendChild(row);
     });
 
-    // ---------- 이벤트 ----------
-    function floatText(x, y, text) {
-      const f = el('span', 'idd-float', text);
-      const rect = root.getBoundingClientRect();
-      f.style.left = (x - rect.left) + 'px';
-      f.style.top = (y - rect.top) + 'px';
-      root.appendChild(f);
-      setTimeout(function () { f.remove(); }, 900);
+    // ---------- 업적 타일 ----------
+    const achTiles = {};
+    D.achievements.forEach(function (a) {
+      const t = el('div', 'idd-ach', '<span>' + a.icon + '</span>');
+      t.dataset.tip = 'ach:' + a.id;
+      achTiles[a.id] = t;
+      R.achs.appendChild(t);
+    });
+
+    // ---------- 툴팁 ----------
+    const upgById = {};
+    game.upgrades.forEach(function (u) { upgById[u.id] = u; });
+    const achById = {};
+    D.achievements.forEach(function (a) { achById[a.id] = a; });
+
+    function tipHtml(key) {
+      const s = game.state;
+      const [kind, id] = key.split(':');
+      if (kind === 'upg') {
+        const u = upgById[id];
+        return `<b class="idd-tip-title">${u.icon} ${u.name}</b><div>${u.desc}</div><div class="idd-tip-cost ${s.light >= u.cost ? '' : 'no'}">✦ ${fmt(u.cost)}</div>`;
+      }
+      if (kind === 'gen') {
+        const g = D.generators.find(function (x) { return x.id === id; });
+        const r = game.genRate(g);
+        return `<b class="idd-tip-title">${g.icon} ${g.name}</b><div class="idd-tip-dim">${g.desc}</div>
+          <div>개당 <b>${fmt(r)}</b>/초 · ${s.gens[id]}개 합계 <b>${fmt(r * s.gens[id])}</b>/초</div>`;
+      }
+      if (kind === 'ach') {
+        const a = achById[id], got = s.achievements[id];
+        return got
+          ? `<b class="idd-tip-title">${a.icon} ${a.name}</b><div>${a.desc()}</div><div class="idd-tip-dim">달성 완료</div>`
+          : `<b class="idd-tip-title">🔒 ???</b><div>${a.desc()}</div>`;
+      }
+      if (kind === 'mult-core') return `<b class="idd-tip-title">성핵 보너스</b><div>성핵 ${fmt(s.cores)}개 → 전체 생산 x${(1 + s.cores * D.CORE_BONUS).toFixed(2)}</div>`;
+      if (kind === 'mult-ach') return `<b class="idd-tip-title">업적 보너스</b><div>업적 ${game.achCount()}개 → 전체 생산 x${(1 + game.achCount() * D.ACH_BONUS).toFixed(2)}</div>`;
+      return '';
     }
 
+    let tipTarget = null;
+    function showTip(target) {
+      tipTarget = target;
+      R.tip.innerHTML = tipHtml(target.dataset.tip);
+      R.tip.hidden = false;
+      const rr = root.getBoundingClientRect(), tr = target.getBoundingClientRect();
+      const w = R.tip.offsetWidth, h = R.tip.offsetHeight;
+      let x = tr.left - rr.left + tr.width / 2 - w / 2;
+      let y = tr.top - rr.top - h - 8;
+      if (y < 4) y = tr.bottom - rr.top + 8;
+      x = Math.max(6, Math.min(rr.width - w - 6, x));
+      R.tip.style.left = x + 'px';
+      R.tip.style.top = y + 'px';
+    }
+    function hideTip() { tipTarget = null; R.tip.hidden = true; }
+    root.addEventListener('mouseover', function (ev) {
+      const t = ev.target.closest('[data-tip]');
+      if (t && t !== tipTarget) showTip(t);
+      else if (!t && tipTarget) hideTip();
+    });
+    root.addEventListener('mouseleave', hideTip);
+
+    // ---------- 이펙트 ----------
+    function rootXY(x, y) { const r = root.getBoundingClientRect(); return [x - r.left, y - r.top]; }
+
+    function floatText(x, y, text, cls) {
+      const f = el('span', 'idd-float' + (cls ? ' ' + cls : ''), text);
+      const p = rootXY(x, y);
+      f.style.left = p[0] + 'px'; f.style.top = p[1] + 'px';
+      root.appendChild(f);
+      setTimeout(function () { f.remove(); }, 1000);
+    }
+
+    function sparks(x, y, n, color) {
+      const p = rootXY(x, y);
+      for (let i = 0; i < n; i++) {
+        const sp = el('span', 'idd-spark');
+        const a = rand(0, Math.PI * 2), d = rand(30, 80);
+        sp.style.left = p[0] + 'px'; sp.style.top = p[1] + 'px';
+        sp.style.setProperty('--dx', Math.cos(a) * d + 'px');
+        sp.style.setProperty('--dy', Math.sin(a) * d + 'px');
+        if (color) sp.style.background = color;
+        root.appendChild(sp);
+        setTimeout(function () { sp.remove(); }, 700);
+      }
+    }
+
+    function toast(html, cls) {
+      const t = el('div', 'idd-toast' + (cls ? ' ' + cls : ''), html);
+      R.toasts.appendChild(t);
+      while (R.toasts.children.length > 3) R.toasts.firstChild.remove(); // 최대 3개만
+      requestAnimationFrame(function () { t.classList.add('show'); });
+      setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600);
+    }
+    function showModal(html) { R.modalText.innerHTML = html; R.modal.hidden = false; }
+
+    // ---------- 입력 ----------
     orb.addEventListener('click', function (ev) {
       const p = game.click();
       let x = ev.clientX, y = ev.clientY;
       if (!x && !y) { const r = orb.getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; }
       floatText(x, y, '+' + fmt(p));
+      sparks(x, y, 5);
       orb.classList.remove('pop'); void orb.offsetWidth; orb.classList.add('pop');
     });
 
     R.gens.addEventListener('click', function (ev) {
       const row = ev.target.closest('.idd-gen');
-      if (row && game.buyGen(row.dataset.gen, buyAmount)) refreshShop(true);
+      if (row && game.buyGen(row.dataset.gen, buyAmount)) {
+        refreshShop(true);
+        if (tipTarget === row) showTip(row);
+      }
     });
 
     R.upgrades.addEventListener('click', function (ev) {
       const card = ev.target.closest('.idd-upg');
-      if (card && game.buyUpgrade(card.dataset.id)) { toast(card.dataset.name + ' 구매!'); refreshShop(true); }
+      if (card && game.buyUpgrade(card.dataset.id)) {
+        hideTip();
+        toast('🔧 <b>' + upgById[card.dataset.id].name + '</b> 구매!');
+        refreshShop(true);
+      }
     });
 
-    root.querySelector('.idd-buyamt').addEventListener('click', function (ev) {
+    root.querySelector('.idd-seg').addEventListener('click', function (ev) {
       const b = ev.target.closest('button');
       if (!b) return;
       buyAmount = b.dataset.amt === 'max' ? 'max' : Number(b.dataset.amt);
-      root.querySelectorAll('.idd-buyamt button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      root.querySelectorAll('.idd-seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      refreshShop(true);
+    });
+
+    root.querySelector('.idd-tabs').addEventListener('click', function (ev) {
+      const b = ev.target.closest('[data-tab]');
+      if (!b) return;
+      tab = b.dataset.tab;
+      root.querySelectorAll('.idd-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      root.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== tab; });
+      hideTip();
       refreshShop(true);
     });
 
@@ -161,33 +316,56 @@ window.Idddle = window.Idddle || {};
       const a = ev.target.closest('[data-act]');
       if (!a) return;
       const act = a.dataset.act;
-      if (act === 'save') { game.save(); toast('저장했습니다'); }
-      if (act === 'reset' && confirm('정말 모든 진행(성핵 포함)을 지울까요?')) { game.hardReset(); upgKey = ''; refreshShop(true); toast('초기화했습니다'); }
+      if (act === 'save') { game.save(); toast('💾 저장했습니다'); }
+      if (act === 'reset' && confirm('정말 모든 진행(성핵·업적 포함)을 지울까요?')) { game.hardReset(); upgKey = ''; refreshShop(true); toast('초기화했습니다'); }
       if (act === 'prestige') {
         const g = game.prestigeGain();
         if (g < 1) return;
         if (!confirm('초신성 폭발로 성핵 ' + fmt(g) + '개를 얻고 진행을 초기화할까요?')) return;
         game.prestige(); upgKey = ''; refreshShop(true);
-        showModal('💥 초신성 폭발!<br>성핵 <b>' + fmt(g) + '</b>개를 얻었습니다.');
+        showModal('<div class="idd-modal-icon">💥</div>초신성 폭발!<br>성핵 <b>' + fmt(g) + '</b>개를 얻었습니다.');
       }
       if (act === 'closeModal') R.modal.hidden = true;
     });
 
-    let toastTimer;
-    function toast(msg) {
-      R.toast.textContent = msg;
-      R.toast.classList.add('show');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(function () { R.toast.classList.remove('show'); }, 1600);
+    // ---------- 보너스 별 ----------
+    const BS = D.bonusStar;
+    let bonusTimer = rand(BS.firstDelaySec[0], BS.firstDelaySec[1]);
+
+    function spawnBonus() {
+      const b = el('button', 'idd-bonus');
+      b.type = 'button';
+      b.setAttribute('aria-label', '보너스 별');
+      b.innerHTML = `<svg viewBox="0 0 100 100"><path d="${starPath(50, 52, 46, 20)}" fill="#ffe27a" stroke="#fff" stroke-width="4" stroke-linejoin="round"/></svg>`;
+      const w = root.clientWidth, h = root.clientHeight;
+      b.style.left = rand(40, Math.max(60, w - 100)) + 'px';
+      b.style.top = rand(60, Math.max(80, Math.min(h, 700) - 120)) + 'px';
+      b.style.animationDuration = BS.lifeSec + 's, 1.6s, 3s';
+      b.addEventListener('click', function (ev) {
+        const r = game.claimBonus();
+        const e = r.effect;
+        let x = ev.clientX, y = ev.clientY;
+        if (!x && !y) { const br = b.getBoundingClientRect(); x = br.left + 30; y = br.top + 30; }
+        sparks(x, y, 14, '#ffe27a');
+        if (e.id === 'lucky') {
+          floatText(x, y, '+' + fmt(r.amount), 'big');
+          toast('🌠 <b>' + e.name + '</b> 별가루 +' + fmt(r.amount), 'gold');
+        } else {
+          floatText(x, y, e.name + '!', 'big');
+          toast('🌠 <b>' + e.name + '</b> ' + e.desc, 'gold');
+        }
+        b.remove();
+      });
+      R.bonusLayer.appendChild(b);
+      setTimeout(function () { b.remove(); }, BS.lifeSec * 1000);
     }
-    function showModal(html) { R.modalText.innerHTML = html; R.modal.hidden = false; }
 
     // ---------- 렌더 ----------
     let upgKey = '';
     function refreshShop(force) {
       const s = game.state;
 
-      // 업그레이드: 보이는 목록이 바뀔 때만 다시 그림
+      // 업그레이드 타일
       const visible = game.upgrades.filter(game.upgradeVisible).sort(function (a, b) { return a.cost - b.cost; });
       const key = visible.map(function (u) { return u.id; }).join(',');
       if (force || key !== upgKey) {
@@ -196,14 +374,15 @@ window.Idddle = window.Idddle || {};
         visible.forEach(function (u) {
           const c = el('button', 'idd-upg');
           c.type = 'button';
-          c.dataset.id = u.id; c.dataset.name = u.name; c.dataset.cost = u.cost;
-          c.title = u.name + '\n' + u.desc + '\n비용: ' + fmt(u.cost);
-          c.innerHTML = `<span class="idd-upg-icon">${u.icon}</span><span class="idd-upg-name">${u.name}</span><span class="idd-upg-desc">${u.desc}</span><span class="idd-upg-cost">✦ ${fmt(u.cost)}</span>`;
+          c.dataset.id = u.id;
+          c.dataset.tip = 'upg:' + u.id;
+          const tier = u.kind === 'gen' ? ROMAN[Number(u.id.split('_').pop())] : '';
+          c.innerHTML = `<span class="idd-upg-icon">${u.icon}</span>${tier ? '<span class="idd-upg-tier">' + tier + '</span>' : ''}`;
           R.upgrades.appendChild(c);
         });
       }
       R.upgrades.querySelectorAll('.idd-upg').forEach(function (c) {
-        c.classList.toggle('off', s.light < Number(c.dataset.cost));
+        c.classList.toggle('off', s.light < upgById[c.dataset.id].cost);
       });
 
       // 생산기: 보유 중이거나 바로 다음 1개까지만 공개
@@ -217,42 +396,121 @@ window.Idddle = window.Idddle || {};
         r.row.classList.toggle('locked', !known);
         if (!known) revealNext = false;
 
-        let k = buyAmount === 'max' ? Math.max(1, game.maxAffordable(g)) : buyAmount;
+        const k = buyAmount === 'max' ? Math.max(1, game.maxAffordable(g)) : buyAmount;
         const cost = game.bulkCost(g, k);
         r.owned.textContent = owned;
-        r.cost.textContent = fmt(cost) + (k > 1 ? ' (x' + k + ')' : '');
-        r.rate.textContent = fmt(game.genRate(g));
-        r.total.textContent = fmt(game.genRate(g) * owned);
+        r.cost.textContent = fmt(cost) + (k > 1 ? '  ×' + k : '');
         r.row.classList.toggle('off', s.light < cost);
       });
 
+      // 업적
+      for (const id in achTiles) achTiles[id].classList.toggle('got', !!s.achievements[id]);
+      R.achCount.textContent = game.achCount() + '/' + D.achievements.length;
+
+      // 환생
       const pg = game.prestigeGain();
       R.pgain.textContent = fmt(pg);
       R.cores.textContent = fmt(s.cores);
-      R.gmult.textContent = game.globalMult().toFixed(1);
+      const nextAt = Math.pow(pg + 1, 2) * D.PRESTIGE_DIVISOR;
+      R.pnext.innerHTML = '이번 회차 누적 ' + fmt(s.runTotal) + ' · 다음 성핵까지 ' + fmt(Math.max(0, nextAt - s.runTotal));
       root.querySelector('.idd-btn-prestige').disabled = pg < 1;
+
+      R.coreMult.textContent = 'x' + (1 + s.cores * D.CORE_BONUS).toFixed(1);
+      R.achMult.textContent = 'x' + (1 + game.achCount() * D.ACH_BONUS).toFixed(2);
+
+      if (tab === 'stats') {
+        const rows = [
+          ['전체 누적 별가루', fmt(s.allTime)], ['이번 회차 누적', fmt(s.runTotal)],
+          ['초당 생산 (기본)', fmt(game.baseLps())], ['클릭 횟수', s.clicks.toLocaleString('ko-KR')],
+          ['잡은 보너스 별', s.bonusClicks], ['환생 횟수', s.prestiges],
+          ['업적', game.achCount() + ' / ' + D.achievements.length], ['이번 회차 플레이', fmtTime((Date.now() - s.startedAt) / 1000)],
+        ];
+        R.stats.innerHTML = rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
+      }
     }
 
+    let buffKey = '';
     function refreshStats() {
       const s = game.state;
       R.light.textContent = fmt(s.light);
       R.lps.textContent = fmt(game.lps());
       R.click.textContent = fmt(game.clickPower());
-      R.alltime.textContent = fmt(s.allTime);
-      R.clicks.textContent = s.clicks.toLocaleString('ko-KR');
+
+      const key = s.buffs.map(function (b) { return b.id; }).join(',');
+      if (key !== buffKey) {
+        buffKey = key;
+        R.buffs.innerHTML = s.buffs.map(function (b) {
+          return `<div class="idd-buff" data-b="${b.id}"><span>${b.name} ×${b.mult}</span><span class="idd-buff-t"></span><i></i></div>`;
+        }).join('');
+        root.classList.toggle('idd-storm', s.buffs.some(function (b) { return b.kind === 'prod'; }));
+      }
+      s.buffs.forEach(function (b) {
+        const d = R.buffs.querySelector('[data-b="' + b.id + '"]');
+        if (!d) return;
+        d.querySelector('.idd-buff-t').textContent = Math.ceil(b.left) + '초';
+        d.querySelector('i').style.width = (b.left / b.total * 100) + '%';
+      });
     }
+
+    // ---------- 밤하늘 배경 ----------
+    const sky = root.querySelector('.idd-sky');
+    const ctx = sky.getContext('2d');
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let stars = [], shooting = null;
+    function resizeSky() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      sky.width = root.clientWidth * dpr; sky.height = root.clientHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.round(root.clientWidth * root.clientHeight / 6000);
+      stars = [];
+      for (let i = 0; i < n; i++) stars.push({ x: Math.random() * root.clientWidth, y: Math.random() * root.clientHeight, r: rand(.3, 1.4), p: rand(0, 6.28), sp: rand(.5, 2) });
+    }
+    function drawSky(t) {
+      const w = root.clientWidth, h = root.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+      for (const s of stars) {
+        ctx.globalAlpha = reduceMotion ? .6 : .35 + .65 * (0.5 + 0.5 * Math.sin(s.p + t * s.sp));
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
+      }
+      if (!reduceMotion) {
+        if (!shooting && Math.random() < 0.003) shooting = { x: rand(0, w), y: rand(0, h * .4), vx: rand(5, 9), vy: rand(2, 4), life: 1 };
+        if (shooting) {
+          const s = shooting;
+          const g = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 12, s.y - s.vy * 12);
+          g.addColorStop(0, 'rgba(255,255,255,' + s.life + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.globalAlpha = 1; ctx.strokeStyle = g; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 12, s.y - s.vy * 12); ctx.stroke();
+          s.x += s.vx; s.y += s.vy; s.life -= .02;
+          if (s.life <= 0) shooting = null;
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+    resizeSky();
+    if (window.ResizeObserver) new ResizeObserver(resizeSky).observe(root);
+    else window.addEventListener('resize', resizeSky);
 
     // ---------- 루프 ----------
     // requestAnimationFrame은 백그라운드 탭에서 멈추지만, 경과 시간(dt)을 그대로 반영하므로 손실 없음.
-    let last = performance.now(), shopAcc = 0, saveAcc = 0;
+    let last = performance.now(), shopAcc = 0, saveAcc = 0, skyAcc = 0;
     function frame(now) {
       const dt = Math.max(0, (now - last) / 1000);
       last = now;
       game.tick(dt);
       refreshStats();
-      shopAcc += dt; saveAcc += dt;
-      if (shopAcc > 0.1) { shopAcc = 0; refreshShop(false); }
+      shopAcc += dt; saveAcc += dt; skyAcc += dt;
+      if (shopAcc > 0.2) {
+        shopAcc = 0;
+        const got = game.checkAchievements();
+        if (got.length === 1) toast('🏆 업적 달성 · <b>' + got[0].name + '</b>', 'gold');
+        else if (got.length > 1) toast('🏆 업적 <b>' + got.length + '개</b> 달성 · ' + got[0].name + ' 외', 'gold');
+        refreshShop(false);
+      }
+      if (skyAcc > 1 / 30) { skyAcc = 0; drawSky(now / 1000); }
       if (saveAcc > D.AUTOSAVE_SEC) { saveAcc = 0; game.save(); }
+      bonusTimer -= Math.min(dt, 1); // 백그라운드 복귀 시 한꺼번에 튀어나오지 않게
+      if (bonusTimer <= 0) { spawnBonus(); bonusTimer = rand(BS.delaySec[0], BS.delaySec[1]); }
       requestAnimationFrame(frame);
     }
     refreshShop(true);
@@ -262,9 +520,10 @@ window.Idddle = window.Idddle || {};
     document.addEventListener('visibilitychange', function () { if (document.hidden) game.save(); });
 
     if (offline && offline.earned > 0) {
-      showModal('🌙 자리를 비운 ' + fmtTime(offline.seconds) + ' 동안<br>별가루 <b>' + fmt(offline.earned) + '</b> 개를 모았습니다.<br><small>(오프라인 효율 ' + D.OFFLINE_RATE * 100 + '%)</small>');
+      showModal('<div class="idd-modal-icon">🌙</div>자리를 비운 ' + fmtTime(offline.seconds) + ' 동안<br>별가루 <b>' + fmt(offline.earned) + '</b> 개를 모았습니다.<br><small>(오프라인 효율 ' + D.OFFLINE_RATE * 100 + '%)</small>');
     }
 
-    return game; // 디버깅/외부 연동용
+    game.spawnBonus = spawnBonus; // 디버깅용
+    return game;
   };
 })();

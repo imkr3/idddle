@@ -35,3 +35,50 @@ Idddle.DATA = {
     { id: 'click4', name: '은하 손바닥',    icon: '🤚', cost: 1e7,   needClicks: 1500, lpsFrac: 0.02, desc: '클릭 시 초당 생산량의 2% 추가' },
   ],
 };
+
+// ---------- 보너스 별 ----------
+Idddle.DATA.bonusStar = {
+  firstDelaySec: [20, 45],    // 접속 후 첫 등장
+  delaySec: [60, 150],        // 이후 등장 간격 (랜덤)
+  lifeSec: 12,                // 화면에 머무는 시간
+  effects: [
+    { id: 'lucky',  weight: 5, name: '행운의 별',  desc: '별가루 즉시 획득' },
+    { id: 'storm',  weight: 4, name: '별폭풍',     desc: '30초간 생산 x7',  kind: 'prod',  mult: 7,  sec: 30 },
+    { id: 'frenzy', weight: 2, name: '손끝 폭주',  desc: '15초간 클릭 x15', kind: 'click', mult: 15, sec: 15 },
+  ],
+};
+
+// ---------- 업적 ----------
+// 업적 1개당 전체 생산 +ACH_BONUS. cond(s, e): s = 상태, e = 엔진
+Idddle.DATA.ACH_BONUS = 0.02;
+Idddle.DATA.achievements = (function () {
+  const list = [];
+  const add = function (id, name, icon, desc, cond) { list.push({ id: id, name: name, icon: icon, desc: desc, cond: cond }); };
+  const fmtN = function (n) { return Idddle.fmt ? Idddle.fmt(n) : String(n); };
+
+  [[1e2, '첫 반짝임'], [1e4, '별가루 주머니'], [1e6, '별가루 창고'], [1e8, '은하 상인'], [1e10, '성간 재벌'], [1e12, '우주의 주인'], [1e15, '빅뱅의 후예']]
+    .forEach(function (x, i) { add('total' + i, x[1], '✦', () => '누적 별가루 ' + fmtN(x[0]) + ' 달성', function (s) { return s.allTime >= x[0]; }); });
+
+  [[1, '첫 터치'], [100, '부지런한 손'], [1000, '클릭 장인'], [5000, '손가락 괜찮아요?']]
+    .forEach(function (x, i) { add('click' + i, x[1], '👆', () => '별 ' + fmtN(x[0]) + '회 클릭', function (s) { return s.clicks >= x[0]; }); });
+
+  [[10, '은은한 빛'], [1000, '밝은 밤'], [1e5, '대낮 같은 밤'], [1e7, '초신성급 광도']]
+    .forEach(function (x, i) { add('lps' + i, x[1], '⚡', () => '초당 ' + fmtN(x[0]) + ' 생산', function (s, e) { return e.lps() >= x[0]; }); });
+
+  Idddle.DATA.generators.forEach(function (g) {
+    [[1, '첫 '], [25, '숙련된 '], [100, '전설의 ']].forEach(function (x, i) {
+      add('gen_' + g.id + i, x[1] + g.name, g.icon, () => g.name + ' ' + x[0] + '개 보유', function (s) { return s.gens[g.id] >= x[0]; });
+    });
+  });
+
+  [[1, '반짝, 행운'], [10, '별 사냥꾼'], [50, '별똥별 수집가']]
+    .forEach(function (x, i) { add('bonus' + i, x[1], '🌠', () => '보너스 별 ' + x[0] + '개 잡기', function (s) { return s.bonusClicks >= x[0]; }); });
+
+  [[10, '업그레이드 입문'], [30, '최적화 중독']]
+    .forEach(function (x, i) { add('upg' + i, x[1], '🔧', () => '업그레이드 ' + x[0] + '개 구매', function (s) { return Object.keys(s.upgrades).length >= x[0]; }); });
+
+  [[1, '첫 초신성'], [5, '윤회하는 별']]
+    .forEach(function (x, i) { add('pres' + i, x[1], '💥', () => '환생 ' + x[0] + '회', function (s) { return s.prestiges >= x[0]; }); });
+
+  return list;
+})();

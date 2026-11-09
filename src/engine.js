@@ -33,6 +33,10 @@ Idddle.createEngine = function (saveKey) {
       gens: gens,
       upgrades: {},      // id -> true
       cores: 0,          // 성핵 (환생 화폐)
+      prestiges: 0,
+      bonusClicks: 0,
+      achievements: {},  // id -> true (환생해도 유지)
+      buffs: [],         // { id, name, kind: 'prod'|'click', mult, left(초), total(초) }
       startedAt: Date.now(),
       lastTick: Date.now(),
     };
@@ -41,7 +45,13 @@ Idddle.createEngine = function (saveKey) {
   let s = freshState();
 
   // ---------- 계산 ----------
-  function globalMult() { return 1 + s.cores * D.CORE_BONUS; }
+  function achCount() { return Object.keys(s.achievements).length; }
+  function globalMult() { return (1 + s.cores * D.CORE_BONUS) * (1 + achCount() * D.ACH_BONUS); }
+  function buffMult(kind) {
+    let m = 1;
+    for (const b of s.buffs) if (b.kind === kind) m *= b.mult;
+    return m;
+  }
 
   function genMult(id) {
     let m = 1;
@@ -50,11 +60,12 @@ Idddle.createEngine = function (saveKey) {
   }
 
   function genRate(g) { return g.rate * genMult(g.id) * globalMult(); } // 1개당 초당
-  function lps() {
+  function baseLps() {
     let t = 0;
     for (const g of D.generators) t += s.gens[g.id] * genRate(g);
     return t;
   }
+  function lps() { return baseLps() * buffMult('prod'); }
 
   function clickPower() {
     let base = 1, frac = 0;
@@ -63,7 +74,7 @@ Idddle.createEngine = function (saveKey) {
       if (c.mult) base *= c.mult;
       if (c.lpsFrac) frac += c.lpsFrac;
     }
-    return base * globalMult() + lps() * frac;
+    return (base * globalMult() + lps() * frac) * buffMult('click');
   }
 
   // 현재 n개 보유 상태에서 k개 더 사는 비용 (등비급수 합)
@@ -115,7 +126,10 @@ Idddle.createEngine = function (saveKey) {
   function prestige() {
     const gain = prestigeGain();
     if (gain < 1) return 0;
-    const keep = { cores: s.cores + gain, allTime: s.allTime, clicks: s.clicks };
+    const keep = {
+      cores: s.cores + gain, allTime: s.allTime, clicks: s.clicks, prestiges: s.prestiges + 1,
+      bonusClicks: s.bonusClicks, achievements: s.achievements,
+    };
     s = freshState();
     Object.assign(s, keep);
     save();
@@ -123,8 +137,51 @@ Idddle.createEngine = function (saveKey) {
   }
 
   function tick(dtSec) {
-    if (dtSec > 0) earn(lps() * dtSec);
+    if (dtSec > 0) {
+      // 버프가 tick 도중 끝나도 정확하도록 버프 종료 시점 기준으로 구간을 나눠 계산
+      let rest = dtSec;
+      while (rest > 0) {
+        let step = rest;
+        for (const b of s.buffs) if (b.kind === 'prod') step = Math.min(step, b.left);
+        earn(lps() * step);
+        s.buffs.forEach(function (b) { b.left -= step; });
+        s.buffs = s.buffs.filter(function (b) { return b.left > 1e-9; });
+        rest -= step;
+      }
+    }
     s.lastTick = Date.now();
+  }
+
+  // ---------- 보너스 별 ----------
+  function rollBonus() {
+    const list = D.bonusStar.effects;
+    let r = Math.random() * list.reduce(function (a, e) { return a + e.weight; }, 0);
+    for (const e of list) { r -= e.weight; if (r < 0) return e; }
+    return list[0];
+  }
+
+  // 보너스 별 클릭 처리. 반환: { effect, amount? }
+  function claimBonus() {
+    const e = rollBonus();
+    s.bonusClicks++;
+    if (e.id === 'lucky') {
+      const amount = Math.min(s.light * 0.15, baseLps() * 900) + 77 + clickPower() * 20;
+      earn(amount);
+      return { effect: e, amount: amount };
+    }
+    s.buffs = s.buffs.filter(function (b) { return b.id !== e.id; });  // 같은 버프는 갱신
+    s.buffs.push({ id: e.id, name: e.name, kind: e.kind, mult: e.mult, left: e.sec, total: e.sec });
+    return { effect: e };
+  }
+
+  // ---------- 업적 ----------
+  const engineApi = {};
+  function checkAchievements() {
+    const got = [];
+    for (const a of D.achievements) {
+      if (!s.achievements[a.id] && a.cond(s, engineApi)) { s.achievements[a.id] = true; got.push(a); }
+    }
+    return got;
   }
 
   // ---------- 저장 ----------
@@ -144,6 +201,8 @@ Idddle.createEngine = function (saveKey) {
       s = Object.assign(base, data);
       s.gens = Object.assign(freshState().gens, data.gens || {});
       s.upgrades = data.upgrades || {};
+      s.achievements = data.achievements || {};
+      s.buffs = [];   // 버프는 오프라인 동안 이어지지 않음
     } catch (e) { s = freshState(); return null; }
 
     const away = Math.min((Date.now() - s.lastTick) / 1000, D.OFFLINE_CAP_SEC);
@@ -159,13 +218,15 @@ Idddle.createEngine = function (saveKey) {
     try { localStorage.removeItem(saveKey); } catch (e) {}
   }
 
-  return {
+  // getter(state)를 살리기 위해 Object.assign 대신 디스크립터로 복사
+  return Object.defineProperties(engineApi, Object.getOwnPropertyDescriptors({
     get state() { return s; },
+    baseLps: baseLps, buffMult: buffMult, achCount: achCount, claimBonus: claimBonus, checkAchievements: checkAchievements,
     upgrades: upgrades,
     lps: lps, clickPower: clickPower, genRate: genRate,
     bulkCost: bulkCost, maxAffordable: maxAffordable,
     prestigeGain: prestigeGain, globalMult: globalMult, upgradeVisible: upgradeVisible,
     click: click, buyGen: buyGen, buyUpgrade: buyUpgrade, prestige: prestige,
     tick: tick, save: save, load: load, hardReset: hardReset,
-  };
+  }));
 };
