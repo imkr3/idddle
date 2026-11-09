@@ -1,0 +1,107 @@
+/* 모든 스타일은 .idd 아래로 한정 → 다른 웹사이트에 넣어도 충돌 없음 */
+.idd {
+  --bg: #0d1020; --panel: #161a33; --panel2: #1e2345; --line: #2b3160;
+  --text: #e8eaff; --dim: #8d93c4; --gold: #ffd36b; --accent: #8f7bff; --bad: #ff6b8a;
+  position: relative; overflow: hidden;
+  max-width: 1100px; margin: 0 auto; padding: 16px;
+  background: radial-gradient(ellipse at 30% 0%, #23285a 0%, var(--bg) 60%);
+  color: var(--text); border-radius: 16px;
+  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-size: 14px; line-height: 1.4; user-select: none; -webkit-user-select: none;
+  box-sizing: border-box;
+}
+.idd *, .idd *::before, .idd *::after { box-sizing: inherit; }
+.idd button { font: inherit; color: inherit; cursor: pointer; }
+.idd b { color: var(--gold); font-weight: 700; }
+
+.idd-header { text-align: center; padding: 8px 0 16px; }
+.idd-title { color: var(--dim); letter-spacing: .1em; font-size: 13px; }
+.idd-amount { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.idd-amount small { font-size: 16px; color: var(--dim); margin-left: 6px; font-weight: 400; }
+.idd-rate { color: var(--dim); }
+
+.idd-main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
+@media (max-width: 760px) { .idd-main { grid-template-columns: 1fr; } }
+
+.idd-left { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.idd-orb {
+  width: 220px; height: 220px; border-radius: 50%; border: none; margin-top: 8px;
+  background: radial-gradient(circle at 40% 35%, #fff6d0 0%, #ffd36b 25%, #ff9d5c 55%, #7a3cff 100%);
+  box-shadow: 0 0 40px #ffb34d88, 0 0 120px #8f7bff55;
+  animation: idd-breathe 3s ease-in-out infinite;
+  transition: transform .08s; -webkit-tap-highlight-color: transparent;
+}
+.idd-orb:hover { filter: brightness(1.08); }
+.idd-orb:active { transform: scale(.94); }
+.idd-orb.pop .idd-orb-core { animation: idd-pop .25s; }
+.idd-orb-core { display: inline-block; font-size: 80px; color: #fffbe8; text-shadow: 0 0 20px #fff; }
+@keyframes idd-breathe { 50% { box-shadow: 0 0 60px #ffb34daa, 0 0 160px #8f7bff77; } }
+@keyframes idd-pop { 50% { transform: scale(1.25) rotate(12deg); } }
+.idd-clickpow { color: var(--dim); }
+
+.idd-float {
+  position: absolute; pointer-events: none; z-index: 5; font-weight: 800; color: var(--gold);
+  text-shadow: 0 2px 6px #000; transform: translate(-50%, -50%);
+  animation: idd-float .9s ease-out forwards;
+}
+@keyframes idd-float { to { opacity: 0; transform: translate(-50%, -260%); } }
+
+.idd-panel { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.idd-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.idd-panel-title { font-weight: 700; margin-bottom: 10px; }
+.idd-row { display: flex; justify-content: space-between; align-items: center; }
+.idd-prestige p { margin: 6px 0; color: var(--dim); font-size: 13px; }
+
+.idd-btn {
+  background: var(--accent); border: none; border-radius: 8px; padding: 8px 14px; font-weight: 700; width: 100%;
+}
+.idd-btn:disabled { opacity: .35; cursor: not-allowed; }
+.idd-btn-sm { width: auto; padding: 4px 10px; font-size: 12px; background: var(--panel2); border: 1px solid var(--line); }
+.idd-btn-danger { color: var(--bad); }
+
+.idd-buyamt button { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 12px; margin-left: 2px; }
+.idd-buyamt button.on { background: var(--accent); border-color: var(--accent); }
+
+.idd-upgrades { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.idd-upg {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  background: var(--panel2); border: 1px solid var(--accent); border-radius: 8px; padding: 8px;
+}
+.idd-upg-icon { font-size: 20px; }
+.idd-upg-name { font-weight: 700; font-size: 13px; }
+.idd-upg-desc { color: var(--dim); font-size: 11px; }
+.idd-upg-cost { color: var(--gold); font-size: 12px; }
+.idd-empty { color: var(--dim); font-size: 12px; grid-column: 1 / -1; }
+
+.idd-gens { display: flex; flex-direction: column; gap: 6px; }
+.idd-gen {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+  transition: border-color .15s, background .15s;
+}
+.idd-gen:hover:not(.off) { border-color: var(--accent); background: #262c58; }
+.idd-gen-icon { font-size: 30px; width: 40px; text-align: center; }
+.idd-gen-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.idd-gen-name { font-weight: 700; }
+.idd-gen-desc { color: var(--dim); font-size: 12px; }
+.idd-gen-meta { color: var(--dim); font-size: 11px; }
+.idd-gen-right { display: flex; flex-direction: column; align-items: flex-end; }
+.idd-gen-owned { font-size: 24px; font-weight: 800; color: var(--dim); }
+.idd-gen-cost { color: var(--gold); font-size: 12px; white-space: nowrap; }
+
+.idd-upg.off, .idd-gen.off { opacity: .45; cursor: default; }
+.idd-gen.locked .idd-gen-icon, .idd-gen.locked .idd-gen-name, .idd-gen.locked .idd-gen-desc, .idd-gen.locked .idd-gen-meta { filter: blur(5px) brightness(.3); }
+
+.idd-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; color: var(--dim); font-size: 12px; }
+
+.idd-toast {
+  position: absolute; left: 50%; bottom: 20px; transform: translate(-50%, 20px); opacity: 0;
+  background: var(--panel2); border: 1px solid var(--accent); padding: 8px 16px; border-radius: 999px;
+  transition: .25s; pointer-events: none; z-index: 10;
+}
+.idd-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.idd-modal { position: absolute; inset: 0; background: #0009; display: flex; align-items: center; justify-content: center; z-index: 20; }
+.idd-modal[hidden] { display: none; }
+.idd-modal-box { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 24px; max-width: 320px; text-align: center; line-height: 1.7; }
+.idd-modal-box .idd-btn { margin-top: 16px; }

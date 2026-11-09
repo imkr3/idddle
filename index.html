@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>별가루 수집가 · 프로토타입</title>
+  <link rel="stylesheet" href="src/style.css">
+  <style>body { margin: 0; padding: 24px 12px; background: #070914; }</style>
+</head>
+<body>
+  <!-- 웹사이트에 넣을 때는 이 div + 아래 스크립트 3개 + style.css 만 있으면 된다 -->
+  <div id="idle-game"></div>
+
+  <script src="src/data.js"></script>
+  <script src="src/engine.js"></script>
+  <script src="src/ui.js"></script>
+  <script>
+    window.game = Idddle.mount(document.getElementById('idle-game'), { saveKey: 'idddle-save-v1' });
+  </script>
+</body>
+</html>
