@@ -57,20 +57,20 @@ test('maxAffordable 만큼은 살 수 있고 하나 더는 못 산다', () => {
 
 test('돈이 부족하면 구매 실패하고 상태가 바뀌지 않는다', () => {
   const { game } = makeEngine();
-  assert.equal(game.buyGen('firefly', 1), false);
-  assert.equal(game.state.gens.firefly, 0);
+  assert.equal(game.buyGen('pencil', 1), false);
+  assert.equal(game.state.gens.pencil, 0);
 });
 
 test('tick은 초당 생산 × 시간만큼 더한다', () => {
   const { game } = makeEngine();
-  game.state.gens.lantern = 5;   // 5/초
+  game.state.gens.student = 5;   // 5/초
   game.tick(10);
   close(game.state.light, 50);
 });
 
 test('버프가 tick 도중 끝나면 그 시점까지만 배율이 적용된다', () => {
   const { game } = makeEngine();
-  game.state.gens.lantern = 1;   // 1/초
+  game.state.gens.student = 1;   // 1/초
   game.state.buffs.push({ id: 'storm', kind: 'prod', mult: 7, left: 2, total: 2 });
   game.tick(5);                  // 2초 × 7 + 3초 × 1 = 17
   close(game.state.light, 17);
@@ -80,15 +80,15 @@ test('버프가 tick 도중 끝나면 그 시점까지만 배율이 적용된다
 test('업그레이드는 조건 충족 전에는 살 수 없다', () => {
   const { game } = makeEngine();
   game.state.light = 1e9;
-  assert.equal(game.buyUpgrade('firefly_0'), false);
-  game.state.gens.firefly = 1;
-  assert.equal(game.buyUpgrade('firefly_0'), true);
-  close(game.genRate({ id: 'firefly', rate: 0.1 }), 0.2);
+  assert.equal(game.buyUpgrade('pencil_0'), false);
+  game.state.gens.pencil = 1;
+  assert.equal(game.buyUpgrade('pencil_0'), true);
+  close(game.genRate({ id: 'pencil', rate: 0.1 }), 0.2);
 });
 
 test('환생: 성핵 획득, 진행 초기화, 업적·연구 유지', () => {
   const { game } = makeEngine();
-  game.state.runTotal = 9e6; game.state.light = 5; game.state.gens.firefly = 3;
+  game.state.runTotal = 9e6; game.state.light = 5; game.state.gens.pencil = 3;
   game.state.achievements.total0 = true; game.state.research.legacy = true; game.state.coresSpent = 1;
   game.state.cores = 1;
   assert.equal(game.prestigeGain(), 3);
@@ -96,7 +96,7 @@ test('환생: 성핵 획득, 진행 초기화, 업적·연구 유지', () => {
   const s = game.state;
   assert.equal(s.cores, 4); assert.equal(s.prestiges, 1);
   assert.equal(s.achievements.total0, true); assert.equal(s.research.legacy, true);
-  assert.equal(s.light, 1000); assert.equal(s.gens.firefly, 10);  // 별의 유산
+  assert.equal(s.light, 1000); assert.equal(s.gens.pencil, 10);  // 별의 유산
   assert.equal(s.runTotal, 0);
 });
 
@@ -122,7 +122,7 @@ test('효율적 설계 연구는 생산기 가격을 10% 깎는다', () => {
 test('저장 → 불러오기, 오프라인 보상 계산', () => {
   const store = {};
   const a = makeEngine(store).game;
-  a.state.gens.lantern = 10;      // 10/초
+  a.state.gens.student = 10;      // 10/초
   a.save();
   const saved = JSON.parse(store['test-save']);
   saved.lastTick -= 100 * 1000;   // 100초 전
@@ -135,14 +135,22 @@ test('저장 → 불러오기, 오프라인 보상 계산', () => {
 });
 
 test('깨진 저장 데이터는 안전하게 정리된다', () => {
-  const store = { 'test-save': JSON.stringify({ gens: { firefly: 'abc', lantern: -3 }, light: 'NaN', cores: null }) };
+  const store = { 'test-save': JSON.stringify({ gens: { pencil: 'abc', student: -3 }, light: 'NaN', cores: null }) };
   const { game } = makeEngine(store);
   game.load();
-  assert.equal(game.state.gens.firefly, 0);
-  assert.equal(game.state.gens.lantern, 0);
+  assert.equal(game.state.gens.pencil, 0);
+  assert.equal(game.state.gens.student, 0);
   assert.equal(game.state.light, 0);
   assert.equal(game.state.cores, 0);
-  assert.ok(game.state.gens.blackhole === 0);
+  assert.ok(game.state.gens.university === 0);
+});
+
+test('옛 버전의 모르는 생산기 id는 버려진다', () => {
+  const store = { 'test-save': JSON.stringify({ gens: { firefly: 50, pencil: 3 } }) };
+  const { game } = makeEngine(store);
+  game.load();
+  assert.equal(game.state.gens.pencil, 3);
+  assert.equal('firefly' in game.state.gens, false);
 });
 
 test('완전히 잘못된 저장 데이터는 무시된다', () => {
@@ -153,12 +161,12 @@ test('완전히 잘못된 저장 데이터는 무시된다', () => {
 
 test('내보내기 → 가져오기 왕복', () => {
   const a = makeEngine().game;
-  a.state.light = 4242; a.state.gens.telescope = 7; a.state.research.dream = true;
+  a.state.light = 4242; a.state.gens.teacher = 7; a.state.research.dream = true;
   const code = a.exportSave();
   const b = makeEngine().game;
   assert.equal(b.importSave(code), true);
   assert.equal(b.state.light, 4242);
-  assert.equal(b.state.gens.telescope, 7);
+  assert.equal(b.state.gens.teacher, 7);
   assert.equal(b.state.research.dream, true);
   assert.equal(b.importSave('garbage!!'), false);
 });

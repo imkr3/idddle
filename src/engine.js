@@ -9,9 +9,10 @@ Idddle.createEngine = function (saveKey) {
   const upgrades = [];
   D.generators.forEach(function (g) {
     D.genUpgradeTiers.forEach(function (t, i) {
+      const look = g.upgrades[i];
       upgrades.push({
-        id: g.id + '_' + i, kind: 'gen', gen: g.id, need: t.need,
-        name: g.name + ' ' + t.suffix, icon: g.icon,
+        id: g.id + '_' + i, kind: 'gen', gen: g.id, tier: i, need: t.need,
+        name: look[1], icon: look[0],
         cost: g.baseCost * t.costMul, desc: g.name + ' 생산량 x2',
       });
     });
@@ -173,7 +174,7 @@ Idddle.createEngine = function (saveKey) {
     };
     s = freshState();
     Object.assign(s, keep);
-    if (has('legacy')) { s.light = 1000; s.gens.firefly = 10; }
+    if (has('legacy')) { s.light = 1000; s.gens[D.generators[0].id] = 10; }
     save();
     return gain;
   }
@@ -238,8 +239,8 @@ Idddle.createEngine = function (saveKey) {
     if (!data || typeof data !== 'object' || typeof data.gens !== 'object') return null;
     const base = freshState();
     const out = Object.assign(base, data);
-    out.gens = Object.assign(freshState().gens, data.gens);
-    for (const id in out.gens) out.gens[id] = Math.max(0, Math.floor(Number(out.gens[id]) || 0));
+    out.gens = freshState().gens;   // 현재 존재하는 생산기만 남긴다
+    for (const id in out.gens) out.gens[id] = Math.max(0, Math.floor(Number(data.gens[id]) || 0));
     ['light', 'runTotal', 'allTime', 'clicks', 'cores', 'coresSpent', 'prestiges', 'bonusClicks'].forEach(function (k) {
       const n = Number(out[k]);
       out[k] = isFinite(n) && n > 0 ? n : 0;

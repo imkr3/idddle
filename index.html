@@ -3,20 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>별가루 수집가 · 프로토타입</title>
+  <title>아이들 스쿨 · 방치형 학교 키우기</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap">
   <link rel="stylesheet" href="src/style.css">
-  <style>body { margin: 0; padding: 24px 12px; background: #05060f; min-height: 100vh; }</style>
+  <style>body { margin: 0; padding: 24px 12px; min-height: 100vh; background: #2b2420 radial-gradient(circle at 50% 0%, #4a3b30, #1f1916 70%); }</style>
 </head>
 <body>
-  <!-- 웹사이트에 넣을 때는 이 div + 아래 스크립트 3개 + style.css 만 있으면 된다 -->
+  <!-- 웹사이트에 넣을 때는 이 div + 아래 스크립트 3개 + style.css 만 있으면 된다 (폰트 2개는 선택) -->
   <div id="idle-game"></div>
 
   <script src="src/data.js"></script>
   <script src="src/engine.js"></script>
   <script src="src/ui.js"></script>
   <script>
-    window.game = Idddle.mount(document.getElementById('idle-game'), { saveKey: 'idddle-save-v1' });
+    window.game = Idddle.mount(document.getElementById('idle-game'), { saveKey: 'idddle-school-v1' });
   </script>
 </body>
 </html>
