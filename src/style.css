@@ -17,7 +17,10 @@
   font-family: 'Pretendard', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   font-size: 14px; line-height: 1.45; user-select: none; -webkit-user-select: none;
   box-sizing: border-box;
+  /* 모바일: 더블탭 확대·탭 하이라이트·길게 눌러 메뉴 방지 */
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
 }
+.idd button, .idd .idd-orb { touch-action: manipulation; }
 .idd *, .idd *::before, .idd *::after { box-sizing: inherit; }
 /* :where()로 명시도 0 → 아래 개별 컴포넌트 스타일이 항상 이긴다 */
 :where(.idd) button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
@@ -116,7 +119,10 @@
 .idd-room-name { font-weight: 700; }
 .idd-room-name b { margin-left: 2px; }
 .idd-room-rate { color: var(--dim); font-variant-numeric: tabular-nums; }
-.idd-room-floor { position: relative; height: 62px; overflow: hidden; }
+.idd-room-floor { position: relative; height: 66px; overflow: hidden; }
+/* 교실 벽(위쪽 띠): 창문·칠판·게시판 등 */
+.idd-room-floor::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 12px; z-index: 0; pointer-events: none; }
+.idd-worker { margin-top: 6px; }
 .idd-room-bar { height: 3px; background: rgba(0, 0, 0, .3); }
 .idd-room-bar i { display: block; height: 100%; width: 0; background: var(--gold); opacity: .8; animation: idd-progress 3s linear infinite; }
 @keyframes idd-progress { from { width: 0; } to { width: 100%; } }
@@ -277,7 +283,10 @@
 .idd-toast b { color: #b5523b; }
 .idd-toast.gold { background: #fff3a8; }
 .idd-toast.show { opacity: 1; transform: rotate(-1deg); }
-@media (max-width: 760px) { .idd-toasts { left: 50%; transform: translateX(-50%); align-items: center; position: fixed; } }
+@media (max-width: 760px) {
+  .idd-toasts { left: 50%; bottom: 12px; transform: translateX(-50%); align-items: center; position: fixed; gap: 4px; }
+  .idd-toast { font-size: 12px; padding: 6px 12px; }
+}
 
 /* 모달 (공책 종이) */
 .idd-modal { position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(10, 20, 15, .65); backdrop-filter: blur(2px); }
@@ -296,3 +305,104 @@
 @media (prefers-reduced-motion: reduce) {
   .idd-worker, .idd-book, .idd-room-bar i { animation: none !important; }
 }
+
+/* ================= v4: 그래픽·콘텐츠 추가 ================= */
+
+/* 헤더: 학년 배지 + 벽시계 */
+.idd-top { position: relative; }
+.idd-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.idd-grade { flex-shrink: 0; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2d2410; background: var(--mint); box-shadow: 0 2px 0 rgba(0, 0, 0, .25); cursor: help; }
+.idd-grade.up { animation: idd-grade-up .8s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes idd-grade-up { 0% { transform: scale(1); } 30% { transform: scale(1.5) rotate(-6deg); background: var(--gold); } 100% { transform: scale(1); } }
+.idd-clock { position: absolute; left: 50%; top: -4px; width: 44px; height: 44px; margin-left: -22px; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .35)); }
+.idd-clock path { transition: transform .2s cubic-bezier(.4, 2.2, .6, 1); }
+@media (max-width: 760px) { .idd-clock { display: none; } .idd-grade { font-size: 11px; padding: 1px 8px; } }
+@media (max-width: 420px) { .idd-brand { flex-direction: column; align-items: flex-start; gap: 2px; } }
+
+/* 교과서: 클릭 파동 */
+.idd-ring { position: absolute; z-index: 28; width: 16px; height: 16px; margin: -8px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .8); pointer-events: none; animation: idd-ring .5s ease-out forwards; }
+@keyframes idd-ring { to { transform: scale(5); opacity: 0; border-width: 1px; } }
+.idd-orb::before { content: ''; position: absolute; inset: 14% 8% 20%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 224, 102, .28), transparent 70%); animation: idd-glow 3s ease-in-out infinite; pointer-events: none; }
+@keyframes idd-glow { 50% { opacity: .4; transform: scale(.92); } }
+
+/* 활동 카드: 쪽지 시험 · 출석부 */
+.idd-cards { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 250px; margin-top: 14px; }
+.idd-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; text-align: left; background: #f5f1e3; color: #2d2410; box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.idd-card-icon { font-size: 26px; }
+.idd-card-body { display: flex; flex-direction: column; min-width: 0; }
+.idd-card-title { color: #2d2410 !important; font-family: var(--hand); font-size: 19px; line-height: 1.1; }
+.idd-card small { color: #7a6f52; font-size: 12px; }
+.idd-quiz { transition: transform .1s; opacity: .8; }
+.idd-quiz.ready { opacity: 1; background: #fff3a8; animation: idd-nudge 2.4s ease-in-out infinite; }
+.idd-quiz.ready small { color: #b5523b; font-weight: 700; }
+.idd-quiz:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, .3); }
+@keyframes idd-nudge { 0%, 80%, 100% { transform: none; } 85% { transform: rotate(-2deg); } 90% { transform: rotate(2deg); } 95% { transform: rotate(-1deg); } }
+.idd-attend { cursor: help; }
+.idd-stamps { display: flex; gap: 3px; margin-top: 3px; }
+.idd-stamps i { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-size: 10px; font-weight: 700; color: #b0a68a; border: 1px dashed #c8c0a6; }
+.idd-stamps i.on { color: #fff; background: #e2574c; border: 1px solid #c0392b; transform: rotate(-8deg); }
+.idd-stamps.big { justify-content: center; margin: 10px 0; }
+.idd-stamps.big i { width: 26px; height: 26px; font-size: 12px; }
+.idd-hr { border: none; border-top: 2px dashed #d6cbb0; margin: 14px 0; }
+
+/* 쪽지 시험 창 */
+.idd-quiz-head { display: flex; justify-content: space-between; font-family: var(--hand); font-size: 20px; font-weight: 700; }
+.idd-quiz-streak { color: #e2574c; }
+.idd-quiz-q { margin: 8px 0 6px; font-family: var(--hand); font-size: 44px; font-weight: 700; color: #2d2410; }
+.idd-quiz-time { height: 6px; border-radius: 3px; background: #e8e2cf; overflow: hidden; }
+.idd-quiz-time i { display: block; height: 100%; background: #e2574c; animation: idd-timeleft linear forwards; }
+@keyframes idd-timeleft { from { width: 100%; } to { width: 0; } }
+.idd-quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.idd-quiz-c { padding: 12px 0; border-radius: 10px; font-family: var(--hand); font-size: 26px; font-weight: 700; color: #2d2410; background: #fff; border: 2px solid #d6cbb0 !important; box-shadow: 0 3px 0 #d6cbb0; }
+.idd-quiz-c:hover:not(:disabled) { background: #fff8d6; }
+.idd-quiz-c:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.idd-quiz-c.right { background: #b8f2a1; border-color: #4f9a3d !important; }
+.idd-quiz-c.wrong { background: #ffc9c4; border-color: #e2574c !important; animation: idd-shake 0.3s 2; }
+.idd-quiz-c:disabled { cursor: default; }
+.idd-quiz-msg { min-height: 24px; margin-top: 10px; font-weight: 700; }
+
+/* 상점: 살 수 있는 업그레이드는 반짝 */
+.idd-upg { overflow: hidden; }
+.idd-upg:not(.off)::after { content: ''; position: absolute; top: -10%; bottom: -10%; width: 30%; left: -60%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .9), transparent); transform: skewX(-20deg); animation: idd-shine 2.8s ease-in-out infinite; }
+@keyframes idd-shine { 0%, 60% { left: -60%; } 100% { left: 140%; } }
+.idd-upg.syn { border-color: var(--pink); background: #fff0f6; }
+.idd-upg.syn.off { border-color: rgba(0, 0, 0, .2); background: #c9c4b4; }
+.idd-upg-tier.idd-syn { background: var(--pink); letter-spacing: -2px; }
+.idd-upg-tier { z-index: 1; }
+
+/* 상점: 다음 업그레이드까지 진행 막대 */
+.idd-gen { position: relative; overflow: hidden; }
+.idd-gen-next { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, .2); }
+.idd-gen-next i { display: block; height: 100%; width: 0; background: var(--mint); opacity: .8; transition: width .3s; }
+.idd-gen:not(.off) { box-shadow: inset 3px 0 0 var(--gold); }
+
+/* 교실 벽 띠 */
+.idd-room[data-gen="pencil"] .idd-room-floor::after { background: linear-gradient(90deg, transparent 22px, #f2a7a7 22px 24px, transparent 24px), #efe9d6; }
+.idd-room[data-gen="student"] .idd-room-floor::after { background: repeating-linear-gradient(90deg, #f0e6cf 0 60px, #9fd3f0 60px 82px, #f0e6cf 82px 86px, #9fd3f0 86px 108px, #f0e6cf 108px 140px); border-bottom: 2px solid #c9b48c; }
+.idd-room[data-gen="teacher"] .idd-room-floor::after { height: 14px; background: linear-gradient(#2c5a46, #2c5a46) 30px 2px / 60% 10px no-repeat, #5b4636; border-bottom: 2px solid #3f2f22; }
+.idd-room[data-gen="library"] .idd-room-floor::after { background: #4a2f24; border-bottom: 3px solid #2e1b13; }
+.idd-room[data-gen="lab"] .idd-room-floor::after { background: repeating-linear-gradient(90deg, #ffffff 0 30px, #ffd36b 30px 34px); border-bottom: 2px solid #9fb6c4; }
+.idd-room[data-gen="computer"] .idd-room-floor::after { background: radial-gradient(circle, #5ee1ff 1.5px, transparent 2px) 0 0 / 18px 12px, #0f1730; border-bottom: 1px solid #2c3a66; }
+.idd-room[data-gen="university"] .idd-room-floor::after { background: repeating-linear-gradient(90deg, #d8d2c2 0 14px, #b9b2a0 14px 18px); border-bottom: 2px solid #6e685a; }
+.idd-room[data-gen="online"] .idd-room-floor::after { background: linear-gradient(90deg, #ff4d6d 0 34px, #2a1a3d 34px); }
+.idd-room[data-gen="space"] .idd-room-floor::after { background: linear-gradient(90deg, #8b9bb4, #c7d2e4 50%, #8b9bb4); border-bottom: 2px solid #4b5a73; }
+.idd-room[data-gen="timemachine"] .idd-room-floor::after { background: repeating-linear-gradient(90deg, #ffe066 0 10px, #3b2a1a 10px 20px); }
+
+/* 새 교실 바닥 */
+.idd-room[data-gen="online"] .idd-room-floor { background: radial-gradient(ellipse at 50% 120%, #7b2cbf, #2a1a3d 70%); }
+.idd-room[data-gen="space"] .idd-room-floor { background: radial-gradient(circle, #fff 1px, transparent 1.5px) 0 0 / 23px 19px, radial-gradient(circle, rgba(255, 255, 255, .6) 1px, transparent 1.5px) 11px 9px / 31px 27px, linear-gradient(#0b1026, #1b2350); }
+.idd-room[data-gen="timemachine"] .idd-room-floor { background: repeating-conic-gradient(from 0deg at 50% 50%, #3a2e6b 0 15deg, #2a2050 15deg 30deg); }
+.idd-room[data-gen="timemachine"] .idd-room-floor::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, transparent, rgba(0, 0, 0, .45)); }
+
+/* 학생은 책상에, 선생님은 교탁 앞에, 과학실은 실험대에 */
+.idd-room[data-gen="student"] .idd-worker::after,
+.idd-room[data-gen="lab"] .idd-worker::after,
+.idd-room[data-gen="computer"] .idd-worker::after { content: ''; position: absolute; left: -2px; right: -2px; bottom: -3px; height: 6px; border-radius: 2px; background: #6b4223; box-shadow: 0 2px 0 rgba(0, 0, 0, .25); z-index: -1; }
+.idd-room[data-gen="lab"] .idd-worker::after { background: #e6eef2; border: 1px solid #9fb6c4; }
+.idd-room[data-gen="computer"] .idd-worker::after { background: #3a4a78; }
+.idd-room[data-gen="teacher"] .idd-worker::after { content: ''; position: absolute; left: 3px; right: 3px; bottom: -6px; height: 9px; border-radius: 2px 2px 0 0; background: #8a5a33; z-index: -1; }
+
+/* 타임머신: 빙글빙글 */
+.idd-room[data-anim="spin"] .idd-worker { animation-name: idd-spin-w; transform-origin: 50% 50%; }
+.idd-room[data-anim="spin"] .idd-worker.new { animation-name: idd-spin-w, idd-pop-in; }
+@keyframes idd-spin-w { 0% { transform: rotate(0); } 40% { transform: rotate(180deg); } 50%, 100% { transform: rotate(180deg) translateY(1px); } }

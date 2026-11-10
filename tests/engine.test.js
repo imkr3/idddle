@@ -189,3 +189,78 @@ test('보너스 별: 버프는 중복되지 않고 갱신된다', () => {
   assert.equal(game.state.buffs[0].left, 30);
   assert.equal(game.state.bonusClicks, 2);
 });
+
+test('시너지: 다른 생산기 수만큼 생산량이 늘어난다', () => {
+  const { game } = makeEngine();
+  const s = game.state;
+  s.gens.student = 15; s.gens.teacher = 5; s.light = 1e9;
+  const before = game.genRate({ id: 'student', rate: 1 });
+  assert.equal(game.buyUpgrade('syn_lesson'), true);
+  close(game.genRate({ id: 'student', rate: 1 }), before * (1 + 0.02 * 5));
+  s.gens.teacher = 10;
+  close(game.genRate({ id: 'student', rate: 1 }), before * (1 + 0.02 * 10));
+});
+
+test('시너지는 조건 전에는 살 수 없다', () => {
+  const { game } = makeEngine();
+  game.state.light = 1e9; game.state.gens.student = 15; game.state.gens.teacher = 4;
+  assert.equal(game.buyUpgrade('syn_lesson'), false);
+});
+
+test('쪽지 시험: 쿨타임, 정답 보상, 연속 기록', () => {
+  const { game } = makeEngine();
+  const t0 = 1_000_000;
+  const q = game.quizStart(t0);
+  assert.ok(q && q.choices.length === 4 && q.choices.includes(q.answer));
+  assert.equal(new Set(q.choices).size, 4);
+  assert.equal(game.quizStart(t0 + 1000), null);                  // 쿨타임 중
+  assert.ok(game.quizReadyIn(t0 + 1000) > 0);
+  assert.ok(game.quizAnswer(true) >= 100);
+  assert.equal(game.state.quiz.streak, 1);
+  assert.ok(game.quizStart(t0 + 151 * 1000));                      // 쿨타임 끝
+  assert.equal(game.quizAnswer(false), 0);
+  assert.equal(game.state.quiz.streak, 0);
+  assert.equal(game.state.quiz.best, 1);
+});
+
+test('쪽지 시험 문제는 항상 맞는 답을 가진다', () => {
+  const { game } = makeEngine();
+  game.state.quiz.correct = 30; // 최고 난이도
+  for (let i = 0; i < 300; i++) {
+    game.state.quiz.readyAt = 0;
+    const q = game.quizStart(1);
+    const expr = q.text.replace('−', '-').replace('×', '*').replace('÷', '/');
+    assert.equal(Function('return ' + expr)(), q.answer, q.text);
+    assert.ok(q.choices.every((c) => c >= 0));
+  }
+});
+
+test('출석: 하루 한 번, 연속 출석이면 streak 증가, 끊기면 1부터', () => {
+  const { game } = makeEngine();
+  assert.equal(game.attendance('2026-11-10').streak, 1);
+  assert.equal(game.attendance('2026-11-10'), null);
+  assert.equal(game.attendance('2026-11-11').streak, 2);
+  assert.equal(game.attendance('2026-12-01').streak, 1);
+  assert.equal(game.state.attend.total, 3);
+  // 월말 → 다음 달 1일도 연속
+  game.state.attend.last = '2026-02-28';
+  assert.equal(game.attendance('2026-03-01').streak, 2);
+});
+
+test('교장선생님 선물: 가진 생산기를 늘려준다', () => {
+  const { game } = makeEngine();
+  game.state.gens.teacher = 40;
+  const orig = Math.random;
+  Math.random = () => 0.99;  // 가중치 마지막 = gift, 생산기 선택도 마지막(유일한 보유 생산기)
+  try { const r = game.claimBonus(); assert.equal(r.effect.id, 'gift'); assert.equal(r.count, 2); } finally { Math.random = orig; }
+  assert.equal(game.state.gens.teacher, 42);
+});
+
+test('학년은 누적 지식에 따라 오른다', () => {
+  const { game } = makeEngine();
+  assert.equal(game.grade().name, '유치원');
+  game.state.allTime = 150;
+  assert.equal(game.grade().name, '초등 1학년');
+  game.state.allTime = 1e40;
+  assert.equal(game.grade().name, '인류의 스승');
+});

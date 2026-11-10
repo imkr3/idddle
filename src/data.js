@@ -33,7 +33,38 @@ Idddle.DATA = {
     { id: 'university', name: '대학교', unit: '곳', icon: '🏛️', baseCost: 2.5e7, rate: 8500,
       desc: '학문의 전당. 연구가 끊이지 않는다.', sprites: ['🏛️', '🏫'], work: '🎓', anim: 'float',
       upgrades: [['📜', '학위 수여식'], ['💰', '연구 장학금'], ['🔬', '부설 연구소'], ['🌍', '국제 학회'], ['🏅', '노벨상']] },
+    { id: 'online', name: '인터넷 강의', unit: '채널', icon: '📺', baseCost: 3.3e8, rate: 47000,
+      desc: '전국의 학생이 동시에 듣는 명강의.', sprites: ['📺', '🎥', '🎙️'], work: '❤️', anim: 'blink',
+      upgrades: [['💡', '링 라이트'], ['🎧', '고급 헤드셋'], ['📈', '구독자 100만'], ['🌐', '다국어 자막'], ['🛰️', '위성 생중계']] },
+    { id: 'space', name: '우주 학교', unit: '곳', icon: '🚀', baseCost: 5.1e9, rate: 260000,
+      desc: '무중력에서 배우는 물리 수업.', sprites: ['🧑‍🚀', '👩‍🚀', '👨‍🚀'], work: '⭐', anim: 'float',
+      upgrades: [['🛸', '셔틀 버스'], ['🪐', '행성 견학'], ['👽', '외계인 교환학생'], ['🌌', '은하 도서관'], ['☄️', '혜성 채집']] },
+    { id: 'timemachine', name: '타임머신 교실', unit: '대', icon: '⏳', baseCost: 7.5e10, rate: 1.6e6,
+      desc: '과거와 미래의 지식을 한꺼번에 배운다.', sprites: ['⏳', '⌛', '🕰️'], work: '🌀', anim: 'spin',
+      upgrades: [['🦕', '공룡 생태 수업'], ['🏺', '고대 문명 체험'], ['🗿', '석상의 비밀'], ['🔮', '미래 예측'], ['♾️', '시간의 끝']] },
   ],
+
+  // 시너지 업그레이드: a 생산기가 b 생산기 1개당 pct만큼 더 생산 (a를 needA, b를 needB개 이상 가지면 등장)
+  synergies: [
+    { id: 'tutor',   icon: '✍️', name: '필기 도우미',       a: 'pencil',      b: 'student',    pct: 0.03,  needA: 25, needB: 10,  cost: 2e4 },
+    { id: 'lesson',  icon: '🤝', name: '1:1 과외',          a: 'student',     b: 'teacher',    pct: 0.02,  needA: 15, needB: 5,   cost: 5e4 },
+    { id: 'refs',    icon: '📑', name: '수업 자료실',       a: 'teacher',     b: 'library',    pct: 0.03,  needA: 10, needB: 5,   cost: 8e5 },
+    { id: 'sim',     icon: '🧮', name: '시뮬레이션 실험',   a: 'lab',         b: 'computer',   pct: 0.02,  needA: 10, needB: 5,   cost: 5e7 },
+    { id: 'coop',    icon: '🏭', name: '산학 협력',         a: 'university',  b: 'lab',        pct: 0.02,  needA: 5,  needB: 25,  cost: 1.5e9 },
+    { id: 'star',    icon: '🌟', name: '스타 강사',         a: 'online',      b: 'teacher',    pct: 0.005, needA: 5,  needB: 100, cost: 2e10 },
+    { id: 'scholar', icon: '🎖️', name: '우주 장학생',       a: 'space',       b: 'university', pct: 0.01,  needA: 5,  needB: 25,  cost: 3e11 },
+    { id: 'history', icon: '🖊️', name: '역사를 적는 연필', a: 'timemachine', b: 'pencil',     pct: 0.001, needA: 5,  needB: 200, cost: 5e12 },
+  ],
+
+  // 쪽지 시험: 쿨타임마다 한 번, 제한 시간 안에 정답을 고르면 보상
+  quiz: { cooldownSec: 150, timeSec: 12 },
+
+  // 출석 체크: 하루 한 번, 연속 출석일수(최대 7)만큼 보상이 커진다
+  attendance: { maxStreakBonus: 7 },
+
+  // 학년: 누적 지식(10의 거듭제곱)에 따라 진급
+  grades: ['유치원', '유치원', '초등 1학년', '초등 2학년', '초등 3학년', '초등 4학년', '초등 5학년', '초등 6학년',
+    '중학생', '고등학생', '대학생', '대학원생', '박사', '교수', '노벨상 수상자', '인류의 스승'],
 
   // 생산기 업그레이드 단계: 해당 생산기를 `need`개 보유하면 등장, 가격 = baseCost * costMul, 효과 x2
   genUpgradeTiers: [
@@ -62,6 +93,7 @@ Idddle.DATA.bonusStar = {
     { id: 'lucky',  weight: 5, name: '참 잘했어요', desc: '지식 즉시 획득' },
     { id: 'storm',  weight: 4, name: '집중 시간',   desc: '30초간 생산 x7',  kind: 'prod',  mult: 7,  sec: 30 },
     { id: 'frenzy', weight: 2, name: '필기 폭주',   desc: '15초간 클릭 x15', kind: 'click', mult: 15, sec: 15 },
+    { id: 'gift',   weight: 1, name: '교장선생님 선물', desc: '가진 생산기 중 하나를 공짜로 더 받음' },
   ],
 };
 
@@ -91,7 +123,27 @@ Idddle.DATA.achievements = (function () {
   [[1, '칭찬받았어요'], [10, '칭찬 수집가'], [50, '모범생']]
     .forEach(function (x, i) { add('bonus' + i, x[1], '🌟', () => '칭찬 스티커 ' + x[0] + '장 모으기', function (s) { return s.bonusClicks >= x[0]; }); });
 
-  [[10, '배움의 시작'], [30, '자기계발 중독']]
+  [[1, '첫 정답'], [10, '척척박사'], [50, '퀴즈왕']]
+    .forEach(function (x, i) { add('quiz' + i, x[1], '📝', () => '쪽지 시험 ' + x[0] + '문제 맞히기', function (s) { return s.quiz.correct >= x[0]; }); });
+  add('quizStreak', '연속 정답 5', '🔥', () => '쪽지 시험 5번 연속 정답', function (s) { return s.quiz.best >= 5; });
+
+  [[3, '개근 시작'], [7, '일주일 개근'], [30, '한 달 출석']]
+    .forEach(function (x, i) { add('attend' + i, x[1], '📅', () => '출석 ' + x[0] + '일', function (s) { return s.attend.total >= x[0]; }); });
+
+  [[100, '북적이는 학교'], [500, '거대한 학원'], [2000, '지식 제국']]
+    .forEach(function (x, i) {
+      add('units' + i, x[1], '🏫', () => '생산기 합계 ' + x[0] + '개', function (s) {
+        let t = 0; for (const id in s.gens) t += s.gens[id]; return t >= x[0];
+      });
+    });
+  add('allRooms', '모든 교실 개방', '🗝️', () => '모든 생산기 10개 이상', function (s) {
+    return Idddle.DATA.generators.every(function (g) { return s.gens[g.id] >= 10; });
+  });
+  add('synAll', '환상의 팀워크', '🤝', () => '시너지 업그레이드 전부 구매', function (s) {
+    return Idddle.DATA.synergies.every(function (x) { return s.upgrades['syn_' + x.id]; });
+  });
+
+  [[10, '배움의 시작'], [30, '자기계발 중독'], [60, '업그레이드 수집가']]
     .forEach(function (x, i) { add('upg' + i, x[1], '📘', () => '업그레이드 ' + x[0] + '개 구매', function (s) { return Object.keys(s.upgrades).length >= x[0]; }); });
 
   [[1, '첫 졸업'], [5, '졸업 장인']]

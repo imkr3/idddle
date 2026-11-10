@@ -112,7 +112,20 @@ window.Idddle = window.Idddle || {};
       <canvas class="idd-sky" aria-hidden="true"></canvas>
       <div class="idd-bonus-layer" data-r="bonusLayer"></div>
       <header class="idd-top">
-        <div class="idd-logo">✏️ 아이들 스쿨</div>
+        <div class="idd-brand">
+          <div class="idd-logo">✏️ 아이들 스쿨</div>
+          <span class="idd-grade" data-r="grade" data-tip="grade">유치원</span>
+        </div>
+        <svg class="idd-clock" viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx="20" cy="20" r="18" fill="#fffdf6" stroke="#8a5a33" stroke-width="3"/>
+          <g stroke="#3b2a1a" stroke-width="1.5" stroke-linecap="round">
+            <path d="M20 4v3M20 33v3M4 20h3M33 20h3"/>
+          </g>
+          <path data-r="clockH" d="M20 20V11" stroke="#3b2a1a" stroke-width="2.6" stroke-linecap="round"/>
+          <path data-r="clockM" d="M20 20V7" stroke="#3b2a1a" stroke-width="1.8" stroke-linecap="round"/>
+          <path data-r="clockS" d="M20 22V6" stroke="#e2574c" stroke-width="1" stroke-linecap="round"/>
+          <circle cx="20" cy="20" r="1.8" fill="#e2574c"/>
+        </svg>
         <div class="idd-mults">
           <span data-tip="mult-core">📜 <b data-r="coreMult">x1.0</b></span>
           <span data-tip="mult-ach">🏆 <b data-r="achMult">x1.0</b></span>
@@ -142,6 +155,16 @@ window.Idddle = window.Idddle || {};
           <div class="idd-clickpow">클릭당 <b data-r="click">1</b></div>
           <div class="idd-desk" data-r="desk" hidden></div>
           <div class="idd-buffs" data-r="buffs"></div>
+          <div class="idd-cards">
+            <button class="idd-card idd-quiz" type="button" data-act="quiz" data-r="quizCard">
+              <span class="idd-card-icon">📝</span>
+              <span class="idd-card-body"><b class="idd-card-title">쪽지 시험</b><small data-r="quizInfo">준비 중…</small></span>
+            </button>
+            <div class="idd-card idd-attend" data-tip="attend">
+              <span class="idd-card-icon">📅</span>
+              <span class="idd-card-body"><b class="idd-card-title">출석부</b><span class="idd-stamps" data-r="stamps"></span></span>
+            </div>
+          </div>
         </section>
 
         <section class="idd-campus">
@@ -242,7 +265,8 @@ window.Idddle = window.Idddle || {};
           <span class="idd-gen-name">${g.name}</span>
           <span class="idd-gen-cost">📘 <span data-g="cost"></span> <span class="idd-gen-eta" data-g="eta"></span></span>
         </span>
-        <span class="idd-gen-owned" data-g="owned">0</span>`;
+        <span class="idd-gen-owned" data-g="owned">0</span>
+        <span class="idd-gen-next"><i data-g="next"></i></span>`;
       const refs = { row: row };
       row.querySelectorAll('[data-g]').forEach(function (e) { refs[e.dataset.g] = e; });
       genRows[g.id] = refs;
@@ -313,6 +337,16 @@ window.Idddle = window.Idddle || {};
         const r = game.research.find(function (x) { return x.id === id; });
         const req = r.req && !game.has(r.req) ? '<div class="idd-tip-cost no">먼저 필요: ' + game.research.find(function (x) { return x.id === r.req; }).name + '</div>' : '';
         return `<b class="idd-tip-title">${r.icon} ${r.name}</b><div>${r.desc}</div>${req}`;
+      }
+      if (kind === 'grade') {
+        const gr = game.grade();
+        const nextName = D.grades[Math.min(D.grades.length - 1, gr.index + 1)];
+        return `<b class="idd-tip-title">🎒 ${gr.name}</b><div>누적 지식이 10배가 될 때마다 진급해요.</div>` +
+          (gr.index < D.grades.length - 1 ? `<div class="idd-tip-dim">다음: ${nextName} (누적 ${fmt(Math.pow(10, gr.index + 1))})</div>` : '');
+      }
+      if (kind === 'attend') {
+        const a = s.attend;
+        return `<b class="idd-tip-title">📅 출석부</b><div>하루 한 번 접속하면 출석 보상! 연속 출석할수록 커져요 (최대 ${D.attendance.maxStreakBonus}배).</div><div class="idd-tip-dim">연속 ${a.streak}일 · 총 ${a.total}일</div>`;
       }
       if (kind === 'mult-core') return `<b class="idd-tip-title">졸업장 보너스</b><div>받은 졸업장 ${fmt(s.cores)}장 → 전체 생산 x${game.coreMult().toFixed(2)}</div>`;
       if (kind === 'mult-ach') return `<b class="idd-tip-title">업적 보너스</b><div>업적 ${game.achCount()}개 → 전체 생산 x${game.achMult().toFixed(2)}</div>`;
@@ -387,7 +421,8 @@ window.Idddle = window.Idddle || {};
     function toast(html, cls) {
       const t = el('div', 'idd-toast' + (cls ? ' ' + cls : ''), html);
       R.toasts.appendChild(t);
-      while (R.toasts.children.length > 3) R.toasts.firstChild.remove(); // 최대 3개만
+      const maxToasts = root.clientWidth < 600 ? 2 : 3;   // 좁은 화면에선 2개만
+      while (R.toasts.children.length > maxToasts) R.toasts.firstChild.remove();
       requestAnimationFrame(function () { t.classList.add('show'); });
       setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600);
     }
@@ -539,15 +574,32 @@ window.Idddle = window.Idddle || {};
     }
 
     // ---------- 입력 ----------
-    orb.addEventListener('click', function (ev) {
+    function study(x, y) {
       const p = game.click();
-      let x = ev.clientX, y = ev.clientY;
-      if (!x && !y) { const r = orb.getBoundingClientRect(); x = r.left + r.width / 2; y = r.top + r.height / 2; }
       floatText(x, y, '+' + fmt(p));
       sparks(x, y, 5);
+      const pos = rootXY(x, y);
+      const ring = el('span', 'idd-ring');
+      ring.style.left = pos[0] + 'px'; ring.style.top = pos[1] + 'px';
+      root.appendChild(ring);
+      setTimeout(function () { ring.remove(); }, 500);
       sound.play('click');
       orb.classList.remove('pop'); void orb.offsetWidth; orb.classList.add('pop');
+    }
+    // 손가락이 닿는 순간 바로 반응(연타가 잘 먹히게). 키보드(Enter/Space)는 click으로 처리
+    orb.addEventListener('pointerdown', function (ev) {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      study(ev.clientX, ev.clientY);
     });
+    orb.addEventListener('click', function (ev) {
+      if (ev.detail !== 0) return;   // 마우스/터치 클릭은 pointerdown에서 이미 처리
+      const r = orb.getBoundingClientRect();
+      study(r.left + r.width / 2, r.top + r.height / 2);
+    });
+    // 더블탭 확대·길게 눌러 메뉴 막기
+    root.addEventListener('dblclick', function (ev) { ev.preventDefault(); });
+    root.addEventListener('contextmenu', function (ev) { if (ev.target.closest('.idd-orb, .idd-bonus')) ev.preventDefault(); });
 
     R.gens.addEventListener('click', function (ev) {
       const row = ev.target.closest('.idd-gen');
@@ -565,7 +617,7 @@ window.Idddle = window.Idddle || {};
         const u = upgById[card.dataset.id];
         hideTip();
         sound.play('buy');
-        toast(u.icon + ' <b>' + u.name + '</b> 구매! ' + (u.kind === 'gen' ? genById[u.gen].name + ' 교실에 놓였어요' : '책상에 놓였어요'));
+        toast(u.icon + ' <b>' + u.name + '</b> 구매! ' + (u.kind === 'click' ? '책상에 놓였어요' : genById[u.gen].name + ' 교실에 놓였어요'));
         refreshShop(true);
         renderCampus(u.gen);
       }
@@ -620,6 +672,7 @@ window.Idddle = window.Idddle || {};
       if (!a) return;
       const act = a.dataset.act;
       if (act === 'save') { game.save(); toast('💾 저장했습니다'); }
+      if (act === 'quiz') openQuiz();
       if (act === 'reset') {
         showModal('<div class="idd-modal-icon">⚠️</div>정말 <b>모든 진행</b>을 지울까요?<br><small>졸업장·업적·발전 계획까지 전부 사라집니다.</small>', [
           { label: '취소' },
@@ -665,6 +718,60 @@ window.Idddle = window.Idddle || {};
       }
     });
 
+    // ---------- 쪽지 시험 ----------
+    let quizTimer = null;
+    function openQuiz() {
+      const q = game.quizStart();
+      if (!q) { toast('📝 아직 쉬는 시간이에요 (' + fmtTime(game.quizReadyIn() / 1000) + ' 남음)'); return; }
+      refreshSlow();
+      let done = false, left = q.timeSec;
+      showModal(`<div class="idd-quiz-head"><span>📝 쪽지 시험</span><span class="idd-quiz-streak">${game.state.quiz.streak ? '🔥 ' + game.state.quiz.streak + '연속' : ''}</span></div>
+        <div class="idd-quiz-q">${q.text} = ?</div>
+        <div class="idd-quiz-time"><i></i></div>
+        <div class="idd-quiz-choices">${q.choices.map(function (c) { return '<button type="button" class="idd-quiz-c" data-v="' + c + '">' + c + '</button>'; }).join('')}</div>
+        <div class="idd-quiz-msg"></div>`, []);
+      const box = R.modalText;
+      const bar = box.querySelector('.idd-quiz-time i');
+      bar.style.animationDuration = q.timeSec + 's';
+      function finish(picked) {
+        if (done) return;
+        done = true;
+        clearInterval(quizTimer);
+        const ok = picked === q.answer;
+        box.querySelectorAll('.idd-quiz-c').forEach(function (b) {
+          const v = Number(b.dataset.v);
+          b.disabled = true;
+          if (v === q.answer) b.classList.add('right');
+          else if (v === picked) b.classList.add('wrong');
+        });
+        bar.style.animationPlayState = 'paused';
+        const reward = game.quizAnswer(ok);
+        const msg = box.querySelector('.idd-quiz-msg');
+        if (ok) {
+          sound.play('bonus');
+          msg.innerHTML = '💯 정답! 지식 <b>+' + fmt(reward) + '</b>' + (game.state.quiz.streak > 1 ? ' <small>(' + game.state.quiz.streak + '연속 보너스)</small>' : '');
+          const r = box.getBoundingClientRect();
+          sparks(r.left + r.width / 2, r.top + r.height / 2, 16, '#ffe066');
+        } else {
+          msg.innerHTML = picked == null ? '⏰ 시간 초과! 정답은 <b>' + q.answer + '</b>' : '❌ 아쉬워요. 정답은 <b>' + q.answer + '</b>';
+        }
+        R.modalBtns.innerHTML = '';
+        const close = el('button', 'idd-btn', '확인');
+        close.type = 'button';
+        close.addEventListener('click', function () { R.modal.hidden = true; });
+        R.modalBtns.appendChild(close);
+        refreshSlow();
+      }
+      box.querySelectorAll('.idd-quiz-c').forEach(function (b) {
+        b.addEventListener('click', function () { finish(Number(b.dataset.v)); });
+      });
+      clearInterval(quizTimer);
+      quizTimer = setInterval(function () {
+        left -= 0.25;
+        if (left <= 0) finish(null);
+      }, 250);
+    }
+
     // ---------- 칭찬 스티커 (보너스) ----------
     let bonusCfg = game.bonusConfig();
     let bonusTimer = rand(bonusCfg.firstDelay[0], bonusCfg.firstDelay[1]);
@@ -690,7 +797,12 @@ window.Idddle = window.Idddle || {};
         if (!x && !y) { const br = b.getBoundingClientRect(); x = br.left + 32; y = br.top + 32; }
         sparks(x, y, 14, '#ffe066');
         sound.play('bonus');
-        if (e.id === 'lucky') {
+        if (e.id === 'gift' && r.gen) {
+          const g = genById[r.gen];
+          floatText(x, y, g.icon + ' +' + r.count, 'big');
+          toast('🎁 <b>' + e.name + '</b> ' + g.name + ' ' + r.count + g.unit + ' 받았어요!', 'gold');
+          refreshShop(true); renderCampus(r.gen);
+        } else if (r.amount != null) {
           floatText(x, y, '+' + fmt(r.amount), 'big');
           toast('🌟 <b>' + e.name + '</b> 지식 +' + fmt(r.amount), 'gold');
         } else {
@@ -721,7 +833,10 @@ window.Idddle = window.Idddle || {};
           c.dataset.tip = 'upg:' + u.id;
           const badge = u.kind === 'gen'
             ? '<span class="idd-upg-tier">' + genById[u.gen].icon + ROMAN[u.tier] + '</span>'
-            : '<span class="idd-upg-tier">✍️</span>';
+            : u.kind === 'syn'
+              ? '<span class="idd-upg-tier idd-syn">' + genById[u.gen].icon + '+' + genById[u.from].icon + '</span>'
+              : '<span class="idd-upg-tier">✍️</span>';
+          if (u.kind === 'syn') c.classList.add('syn');
           c.innerHTML = `<span class="idd-upg-icon">${u.icon}</span>${badge}`;
           R.upgrades.appendChild(c);
         });
@@ -749,6 +864,10 @@ window.Idddle = window.Idddle || {};
         r.cost.textContent = fmt(cost) + (k > 1 ? '  ×' + k : '');
         r.row.classList.toggle('off', s.light < cost);
         r.eta.textContent = s.light < cost && rate > 0 && known ? '⏱ ' + fmtTime((cost - s.light) / rate) : '';
+        // 다음 업그레이드가 열리는 보유 수까지의 진행도
+        const nextTier = D.genUpgradeTiers.find(function (t) { return owned < t.need; });
+        r.next.style.width = nextTier ? (owned / nextTier.need * 100) + '%' : '100%';
+        r.next.parentNode.title = nextTier ? '다음 업그레이드까지 ' + (nextTier.need - owned) + g.unit : '모든 업그레이드 해금';
       });
 
       for (const id in achTiles) achTiles[id].classList.toggle('got', !!s.achievements[id]);
@@ -781,16 +900,55 @@ window.Idddle = window.Idddle || {};
           ['초당 생산 (기본)', fmt(game.baseLps())], ['공부 클릭', s.clicks.toLocaleString('ko-KR') + '회'],
           ['칭찬 스티커', s.bonusClicks + '장'], ['졸업', s.prestiges + '회'], ['발전 계획', Object.keys(s.research).length + ' / ' + game.research.length],
           ['오프라인 보상', Math.round(game.offlineRate() * 100) + '% · 최대 ' + fmtTime(game.offlineCap())],
+          ['쪽지 시험', s.quiz.correct + ' / ' + s.quiz.asked + ' 정답 · 최고 연속 ' + s.quiz.best],
+          ['출석', '총 ' + s.attend.total + '일 · 연속 ' + s.attend.streak + '일'], ['학년', game.grade().name],
           ['업적', game.achCount() + ' / ' + D.achievements.length], ['이번 학년 플레이', fmtTime((Date.now() - s.startedAt) / 1000)],
         ];
         R.stats.innerHTML = rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
       }
     }
 
-    let buffKey = '';
+    let buffKey = '', shownLight = game.state.light;
+    let gradeIdx = game.grade().index;
+
+    function refreshSlow() {
+      const s = game.state;
+      // 시계
+      const d = new Date();
+      const sec = d.getSeconds(), min = d.getMinutes() + sec / 60, hr = (d.getHours() % 12) + min / 60;
+      R.clockS.setAttribute('transform', 'rotate(' + sec * 6 + ' 20 20)');
+      R.clockM.setAttribute('transform', 'rotate(' + min * 6 + ' 20 20)');
+      R.clockH.setAttribute('transform', 'rotate(' + hr * 30 + ' 20 20)');
+      // 쪽지 시험
+      const wait = game.quizReadyIn();
+      R.quizCard.classList.toggle('ready', wait <= 0);
+      R.quizInfo.textContent = wait <= 0 ? '지금 풀 수 있어요!' : '다음 시험까지 ' + fmtTime(wait / 1000);
+      // 학년
+      const gr = game.grade();
+      R.grade.textContent = gr.name;
+      if (gr.index > gradeIdx) {
+        sound.play('grad');
+        toast('🎒 <b>' + gr.name + '</b>(으)로 진급했어요!', 'gold');
+        R.grade.classList.remove('up'); void R.grade.offsetWidth; R.grade.classList.add('up');
+      }
+      gradeIdx = gr.index;
+      // 출석 도장 (이번 주 7칸)
+      const filled = s.attend.streak ? ((s.attend.streak - 1) % 7) + 1 : 0;
+      const key = filled + '/' + s.attend.total;
+      if (R.stamps.dataset.key !== key) {
+        R.stamps.dataset.key = key;
+        let h = '';
+        for (let i = 0; i < 7; i++) h += '<i class="' + (i < filled ? 'on' : '') + '">' + (i < filled ? '✔' : i + 1) + '</i>';
+        R.stamps.innerHTML = h;
+      }
+    }
+
     function refreshStats() {
       const s = game.state;
-      R.light.textContent = fmt(s.light);
+      // 숫자가 툭툭 끊기지 않고 부드럽게 올라가게 (쓸 때는 바로 내려감)
+      shownLight = s.light < shownLight || !isFinite(shownLight) ? s.light : shownLight + (s.light - shownLight) * 0.25;
+      if (s.light - shownLight < 0.01) shownLight = s.light;
+      R.light.textContent = fmt(shownLight);
       R.lps.textContent = fmt(game.lps());
       R.click.textContent = fmt(game.clickPower());
 
@@ -870,6 +1028,7 @@ window.Idddle = window.Idddle || {};
         else if (got.length > 1) toast('🏆 업적 <b>' + got.length + '개</b> 달성 · ' + got[0].name + ' 외', 'gold');
         refreshShop(false);
         renderCampus();
+        refreshSlow();
       }
       if (workAcc > 0.35) { workAcc = 0; workParticles(); }
       if (skyAcc > 1 / 30) { skyAcc = 0; drawSky(); }
@@ -886,9 +1045,22 @@ window.Idddle = window.Idddle || {};
     window.addEventListener('beforeunload', game.save);
     document.addEventListener('visibilitychange', function () { if (document.hidden) game.save(); });
 
+    // 접속 보상: 오프라인 생산 + 오늘 출석 체크를 한 창에
+    const today = new Date();
+    const dayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    const att = game.attendance(dayStr);
+    const welcome = [];
     if (offline && offline.earned > 0) {
-      showModal('<div class="idd-modal-icon">🌙</div>자리를 비운 ' + fmtTime(offline.seconds) + ' 동안<br>지식 <b>' + fmt(offline.earned) + '</b>을 쌓았습니다.<br><small>(오프라인 효율 ' + Math.round(offline.rate * 100) + '%)</small>');
+      welcome.push('<div class="idd-modal-icon">🌙</div>자리를 비운 ' + fmtTime(offline.seconds) + ' 동안<br>지식 <b>' + fmt(offline.earned) + '</b>을 쌓았습니다.<br><small>(오프라인 효율 ' + Math.round(offline.rate * 100) + '%)</small>');
     }
+    if (att) {
+      let st = '';
+      const filled = ((att.streak - 1) % 7) + 1;
+      for (let i = 0; i < 7; i++) st += '<i class="' + (i < filled ? 'on' : '') + '">' + (i < filled ? '✔' : i + 1) + '</i>';
+      welcome.push('<div class="idd-modal-icon">📅</div><b>출석 체크!</b> 연속 ' + att.streak + '일째<div class="idd-stamps big">' + st + '</div>지식 <b>+' + fmt(att.reward) + '</b>');
+    }
+    if (welcome.length) showModal(welcome.join('<hr class="idd-hr">'));
+    refreshSlow();
 
     game.spawnBonus = spawnBonus; // 디버깅용
     return game;
